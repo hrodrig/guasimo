@@ -10,7 +10,9 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
 ## [Unreleased]
 
 ### Added
-- (none yet)
+- `docs/05-deployment.md`: documented the pre-flight step for adding the
+  NVIDIA CUDA repo on Ubuntu 26.04, where the driver does not ship in
+  the main archive.
 
 ### Changed
 - (none yet)
@@ -21,6 +23,10 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
   the current Ubuntu release), with a fallback to the `nvidia-driver`
   metapackage. Fixes the "Unable to locate package nvidia-driver-555"
   error on Ubuntu 26.04, where the version in the archive is different.
+- `deploy/install.sh`: also re-queries `apt-cache` if the first attempt
+  returns nothing but a `nvidia`/`cuda` sources.list file is present
+  (covers the case where the NVIDIA CUDA repo is configured but the
+  driver detection needs an extra nudge).
 
 ### Removed
 - (none yet)

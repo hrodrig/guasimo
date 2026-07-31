@@ -107,6 +107,28 @@ It must NOT:
 - Open ports on the firewall. That is `scripts/open-firewall.sh`, run
   separately, so the operator stays in control of network exposure.
 
+## Pre-flight on a fresh Ubuntu 26.04 machine
+
+On Ubuntu 24.04 the NVIDIA driver ships in the main archive and
+`apt-cache search '^nvidia-driver-[0-9]+$'` returns the latest version
+directly. On Ubuntu 26.04 (`resolute`) the driver is **not** in the main
+archive — it ships from the NVIDIA CUDA repo at
+`https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/x86_64`.
+
+If the install runs on a fresh box where that repo is not yet configured,
+the driver detection in `install.sh` returns nothing and the script logs
+`no nvidia-driver-* package found in apt`. The operator must add the
+repo manually before re-running:
+
+    distribution=$(. /etc/os-release; echo "${ID}${VERSION_ID//./}")
+    architecture=$(dpkg --print-architecture)
+    curl -fsSL "https://developer.download.nvidia.com/compute/cuda/repos/${distribution}/${architecture}/cuda-keyring_1.1-1_all.deb" \
+      -o /tmp/cuda-keyring.deb
+    dpkg -i /tmp/cuda-keyring.deb
+    apt-get update
+
+After that, `install.sh` detects the driver and continues normally.
+
 ## Output of a successful install
 
 ```
