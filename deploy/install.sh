@@ -140,6 +140,16 @@ if [ "${HAS_NVIDIA_HW}" = y ] && [ -z "${DRIVER_PKG}" ]; then
      && apt-cache show nvidia-cuda-toolkit >/dev/null 2>&1; then
     CUDA_PKG="nvidia-cuda-toolkit"
   fi
+  # Ubuntu 26.04 (resolute) does not ship nvidia-driver-* in the main
+  # archive; the package comes from the NVIDIA CUDA repo at
+  # developer.download.nvidia.com. If apt-cache returned nothing but
+  # that repo is present, query it explicitly.
+  if [ -z "${DRIVER_PKG}" ] \
+     && ls /etc/apt/sources.list.d/ 2>/dev/null \
+        | grep -qi 'nvidia\|cuda'; then
+    DRIVER_PKG=$(apt-cache search '^nvidia-driver-[0-9]+$' 2>/dev/null \
+                  | awk '{print $1}' | sort -V | tail -1 || true)
+  fi
   # If we found a driver now, install it (apt-get was a no-op above because
   # we hadn't decided yet). Use apt-get install -y directly.
   if [ -n "${DRIVER_PKG}" ]; then
@@ -147,6 +157,7 @@ if [ "${HAS_NVIDIA_HW}" = y ] && [ -z "${DRIVER_PKG}" ]; then
     apt-get install -y --no-install-recommends "${DRIVER_PKG}" ${CUDA_PKG:+"${CUDA_PKG}"}
   else
     warn "no nvidia-driver-* package found in apt; install the driver manually"
+    warn "see docs/08-troubleshooting.md (NVIDIA driver installation)"
   fi
 fi
 
