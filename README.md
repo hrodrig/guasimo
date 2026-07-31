@@ -1,18 +1,27 @@
-# ia-lab-home
+# guasimo
 
-Local LLM coding workstation. Self-hosted inference stack for programming assistance
-across Go, C#, DevOps, and general software engineering.
+**G**raphical **U**tility for **A**I **S**erver **I**nference of **M**odels,
+**O**pen-source.
 
-**Authoritative documentation lives in `docs/` — read `docs/00-index.md` first.**
+A self-hosted local LLM coding workstation. One command goes from a
+fresh Ubuntu 26.04 install to a working chat UI in your browser and an
+OpenAI-compatible API for your IDE.
+
+Target use: code generation, review, explanation, and translation across
+Go, C#, and DevOps tooling. Models are local; nothing leaves the box.
+
+> **Authoritative documentation lives in `SPECIFICATIONS.md`, `docs/`, and
+> `CHANGELOG.md`. Read those first.**
 
 ## Repository layout
 
     docs/                   Technical documentation (English)
     deploy/                 Systemd units, nginx vhosts, install/uninstall scripts
     config/                 Ollama Modelfiles and llama.cpp server config
-    models/                 Manifests / download recipes (no GGUF blobs committed)
     scripts/                Operations: benchmark, healthcheck, log rotation, etc.
-    tests/prompts/          Per-language prompt suites for evaluation
+    tests/                  End-to-end smoke + per-language prompt suites
+    SPECIFICATIONS.md       Scope and contract for v1
+    CHANGELOG.md            Per-version release notes
 
 ## Hardware target
 

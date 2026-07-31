@@ -1,5 +1,8 @@
 # 00 — Index
 
+**Guasimo** — **G**raphical **U**tility for **A**I **S**erver **I**nference
+of **M**odels, **O**pen-source. A self-hosted local LLM workstation.
+
 This directory is the authoritative technical documentation for the project.
 Code in `deploy/`, `scripts/`, and `config/` is the operational surface; the
 files here are the contract that surface must honour.

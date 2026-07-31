@@ -67,5 +67,5 @@ Initial scaffolding. A new operator can read `SPECIFICATIONS.md` and
 - Firewall is **not** opened automatically. `scripts/open-firewall.sh`
   is the explicit, audited path.
 
-[Unreleased]: https://example.com/ia-lab-home/compare/v0.1.0...HEAD
-[0.1.0]: https://example.com/ia-lab-home/releases/tag/v0.1.0
+[Unreleased]: https://github.com/hrodrig/guasimo/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/hrodrig/guasimo/releases/tag/v0.1.0

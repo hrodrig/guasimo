@@ -1,5 +1,8 @@
 # SPECIFICATIONS
 
+**G**raphical **U**tility for **A**I **S**erver **I**nference of **M**odels,
+**O**pen-source.
+
 The authoritative short-form description of this project. Anything that
 contradicts what is written here is a bug. Detailed design rationale lives
 in `docs/`; operational procedures in `docs/07-operations.md`.
