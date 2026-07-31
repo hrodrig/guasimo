@@ -27,6 +27,27 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
   returns nothing but a `nvidia`/`cuda` sources.list file is present
   (covers the case where the NVIDIA CUDA repo is configured but the
   driver detection needs an extra nudge).
+- `deploy/install.sh`: added `recover_dpkg()` and call it at the start of
+  phase 2 before any `apt-get` operation. It covers two distinct failure
+  modes that previously left the box stuck and every re-run failing the
+  same way:
+  (a) a half-configured dpkg database (interrupted unpack, power loss,
+  Ctrl-C) — repaired with `dpkg --configure -a`, gated on `dpkg --audit`;
+  (b) a broken apt dependency graph that `dpkg --audit` misses — e.g.
+  `nvidia-driver-610` marked "installed" by dpkg but its deps
+  (`nvidia-firmware-610`, `libnvidia-gl-610`, `libnvidia-cfg1-610`)
+  unmet, so apt's resolver refuses with "Unmet dependencies" /
+  "it is not going to be installed" — repaired with `apt-get -f install`,
+  gated on `apt-get check`. Both are no-ops when the system is clean.
+- `deploy/install.sh`: the NVIDIA driver install is no longer fatal.
+  `set -e` previously killed the whole install when the driver unpack
+  failed (e.g. `nvidia-firmware-610`, `libnvidia-cfg1-610`,
+  `libnvidia-gl-610` failing to unpack), leaving the box with no
+  `llama-server` built. The script now catches the failure, runs
+  `recover_dpkg` to clean up, downgrades the box to CPU-only for that
+  run, and proceeds to build a working CPU `llama.cpp`. The operator
+  fixes the driver and re-runs to enable CUDA. This aligns the script
+  with the `docs/05-deployment.md` contract ("warn and continue on CPU").
 
 ### Removed
 - (none yet)

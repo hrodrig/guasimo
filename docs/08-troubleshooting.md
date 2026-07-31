@@ -88,6 +88,36 @@ driver:
 
 Re-run `install.sh`. Phase 1 will re-detect.
 
+## Symptom: `Sub-process /usr/bin/dpkg returned an error code (1)` during install
+
+The NVIDIA driver unpack failed on packages like `nvidia-firmware-610`,
+`libnvidia-cfg1-610`, `libnvidia-gl-610`. The most common cause is a
+`dpkg` database left half-configured by a previous interrupted run
+(Ctrl-C, power loss, or an earlier failed driver install).
+
+`install.sh` now repairs this automatically at the start of phase 2
+(`dpkg --configure -a` + `apt-get -f install`), and the driver failure
+no longer kills the whole install — the box falls back to a CPU build
+of `llama.cpp` for that run. To retry CUDA:
+
+    sudo dpkg --configure -a
+    sudo apt-get -f install
+    sudo apt-get install -y nvidia-driver-610   # or whatever apt-cache found
+    sudo reboot
+    sudo ./deploy/install.sh                    # re-run to enable CUDA
+
+If the driver unpack still fails after the repair, look for:
+
+- An older driver still installed: `dpkg -l | grep nvidia-driver` and
+  `sudo apt-get remove --purge nvidia-driver-*` (keep the one you want).
+- Secure Boot / MOK enrollment blocking the kernel module: the driver
+  package unpacks but the module never loads. `mokutil --sb-state` tells
+  you. Enroll the MOK or disable Secure Boot.
+- Out of space on `/`: `df -h /`. The driver packages are large.
+
+After the driver loads (`nvidia-smi` works as a non-root user), re-run
+`install.sh`. Phase 3 will build the CUDA variant.
+
 ## Symptom: IDE plugin can't reach the API
 
 - Is the plugin pointed at `http://127.0.0.1:11434/v1`? (Not `https` — Ollama

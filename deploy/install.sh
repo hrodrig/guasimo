@@ -31,6 +31,30 @@ banner() { printf "\n\033[1;36m[%s] %s\033[0m\n" "$(date +%H:%M:%S)" "$*"; }
 warn()   { printf "\033[1;33mWARN: %s\033[0m\n" "$*" >&2; }
 die()    { printf "\033[1;31mFATAL: %s\033[0m\n" "$*" >&2; exit 1; }
 
+# Repair a half-configured dpkg database AND a broken apt dependency graph
+# before any apt install. Two distinct failure modes need two distinct checks:
+#
+#   - dpkg --audit  : catches packages in "half-installed"/"unpacked"/
+#     "half-configured" state (interrupted unpack, power loss, Ctrl-C).
+#     Fix: dpkg --configure -a.
+#   - apt-get check : catches a broken dependency graph that dpkg --audit
+#     misses — e.g. nvidia-driver-610 marked "installed" by dpkg but its
+#     deps (nvidia-firmware-610, libnvidia-gl-610, ...) unmet, so apt's
+#     resolver refuses to proceed with "Unmet dependencies" /
+#     "it is not going to be installed". Fix: apt-get -f install.
+#
+# Both are no-ops when the system is clean.
+recover_dpkg() {
+  if [ -n "$(dpkg --audit 2>/dev/null || true)" ]; then
+    echo "  repairing half-configured packages (dpkg --configure -a)"
+    dpkg --configure -a
+  fi
+  if ! apt-get check >/dev/null 2>&1; then
+    echo "  repairing broken apt dependencies (apt-get -f install)"
+    apt-get -f install -y
+  fi
+}
+
 [ "$(id -u)" -eq 0 ] || die "run as root: sudo $0"
 
 # ---------------------------------------------------------------------------
@@ -99,6 +123,10 @@ banner "phase 2/5  packages"
 
 export DEBIAN_FRONTEND=noninteractive
 
+# Repair dpkg before touching apt. If a previous run died mid-install (most
+# commonly during the NVIDIA driver unpack), apt is unusable until this runs.
+recover_dpkg
+
 PKGS=(build-essential cmake git curl wget jq python3 python3-venv
       python3-pip nginx sqlite3 uuid-runtime ca-certificates
       libssl-dev pkg-config lm-sensors nvme-cli smartmontools)
@@ -151,10 +179,29 @@ if [ "${HAS_NVIDIA_HW}" = y ] && [ -z "${DRIVER_PKG}" ]; then
                   | awk '{print $1}' | sort -V | tail -1 || true)
   fi
   # If we found a driver now, install it (apt-get was a no-op above because
-  # we hadn't decided yet). Use apt-get install -y directly.
+  # we hadn't decided yet). Use apt-get install -y directly. This is the
+  # step most likely to fail: the NVIDIA driver unpack can hit conflicts
+  # with leftover packages from a previous driver version, broken dpkg
+  # state, or Secure Boot / MOK issues. Per docs/05-deployment.md the
+  # contract is "warn and continue on CPU" — so we do not let this kill
+  # the whole install. The operator fixes the driver and re-runs.
   if [ -n "${DRIVER_PKG}" ]; then
     echo "  detected NVIDIA packages: ${DRIVER_PKG}${CUDA_PKG:+ $CUDA_PKG}"
-    apt-get install -y --no-install-recommends "${DRIVER_PKG}" ${CUDA_PKG:+"${CUDA_PKG}"}
+    if apt-get install -y --no-install-recommends "${DRIVER_PKG}" ${CUDA_PKG:+"${CUDA_PKG}"}; then
+      :
+    else
+      warn "NVIDIA driver install failed (dpkg error). Attempting to repair dpkg state."
+      recover_dpkg
+      warn "the NVIDIA driver could not be installed. Falling back to CPU"
+      warn "for this run. See docs/08-troubleshooting.md (NVIDIA driver"
+      warn "installation). After fixing the driver, re-run $0 to enable CUDA."
+      # Treat the box as CPU-only for this run so phase 3 builds a working
+      # CPU binary instead of deferring and leaving nothing built.
+      HAS_NVIDIA_HW=n
+      HAS_NVIDIA_RT=n
+      DRIVER_PKG=""
+      CUDA_PKG=""
+    fi
   else
     warn "no nvidia-driver-* package found in apt; install the driver manually"
     warn "see docs/08-troubleshooting.md (NVIDIA driver installation)"
