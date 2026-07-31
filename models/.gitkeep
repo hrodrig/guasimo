@@ -1,0 +1,3 @@
+# This directory holds the model manifest / recipes.
+# Downloaded GGUF blobs go to /data/models and /bulk/models on the Ubuntu host.
+# Keep this file so git tracks the empty directory.

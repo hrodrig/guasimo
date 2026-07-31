@@ -1,0 +1,2 @@
+# benchmark.sh / smoke.sh may write JSON or CSV reports here.
+# Empty placeholder so the directory is committed.

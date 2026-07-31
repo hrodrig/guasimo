@@ -1,0 +1,7 @@
+[Unit]
+Description=Rotate ia-lab logs
+
+[Service]
+Type=oneshot
+ExecStart=/opt/ia-lab/../ia-lab-home/scripts/rotate-logs.sh
+Nice=10

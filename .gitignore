@@ -1,0 +1,58 @@
+# Whitelist-style .gitignore.
+#
+# Everything is ignored by default. Anything you want tracked must be
+# added with `!` below. This keeps the repo immune to accidental commits
+# of editor swap files, OS metadata, downloaded blobs, secrets, and
+# transient artefacts. The trade-off is explicit: if a new file type
+# appears in the repo, you must whitelist it intentionally.
+#
+# Pattern (verified working pattern, see git's gitignore docs):
+#
+#   *              # ignore every name at every depth, but still descend
+#   .*             # ignore every dotfile at every depth
+#   !/<file>       # re-allow a specific file at the repo root
+#   !/<dir>/       # re-allow a specific directory entry at the root
+#   !/<dir>/**     # re-allow everything inside that directory recursively
+#
+# Do NOT use `/*` as the top-level blacklist: it anchors to the root
+# and prevents git from descending into directories to evaluate the
+# whitelist, which silently re-ignores everything.
+
+# --- Blacklist ---------------------------------------------------------
+
+# Ignore every name at every depth. Descends into directories (so
+# `!/dir/**` rules below can match), but matches names.
+*
+
+# Ignore dotfiles at every depth.
+.*
+
+# --- Whitelist: top-level files ----------------------------------------
+
+!/LICENSE
+!/README.md
+
+# --- Whitelist: top-level directories ----------------------------------
+
+!/config/
+!/config/**
+
+!/deploy/
+!/deploy/**
+
+!/docs/
+!/docs/**
+
+!/scripts/
+!/scripts/**
+
+!/tests/
+!/tests/**
+
+!/models/
+!/models/**
+
+# --- Whitelist: dotfiles at the root -----------------------------------
+
+!/.gitignore
+!/.editorconfig

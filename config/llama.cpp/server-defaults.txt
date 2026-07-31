@@ -1,0 +1,38 @@
+# llama.cpp server defaults (when invoked directly, not via Ollama).
+#
+# Used by `scripts/benchmark.sh` if the user wants to bypass Ollama and
+# hit llama-server directly. Mirrors the Ollama Modelfile sampling
+# defaults so behaviour is uniform between the two surfaces.
+#
+# Reference: docs/04-models.md (Sampling defaults section).
+
+# Model location: populated by the operator. Example:
+#   /bulk/models/qwen2.5-coder-14b-instruct-q4_k_m.gguf
+# -m is set on the command line, not here.
+
+# Context
+--ctx-size           8192
+
+# Sampling
+--temp               0.2
+--top-p              0.95
+--top-k              40
+--repeat-penalty     1.05
+
+# Batching / parallelism. One slot is enough for single-user; bump if
+# multiple chat clients hit the server simultaneously.
+--parallel           1
+--batch-size         512
+--ubatch-size        128
+
+# GPU offload. -ngl 999 = offload as many layers as fit. Ollama does
+# this automatically; here we make it explicit.
+--n-gpu-layers       999
+
+# Server behaviour. Bind loopback only; nginx terminates TLS.
+--host               127.0.0.1
+--port               8081
+--alias              coder-default
+
+# Logging
+--log-format         json
