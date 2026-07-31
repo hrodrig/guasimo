@@ -31,6 +31,7 @@
 
 !/LICENSE
 !/README.md
+!/SPECIFICATIONS.md
 
 # --- Whitelist: top-level directories ----------------------------------
 
@@ -56,3 +57,17 @@
 
 !/.gitignore
 !/.editorconfig
+
+# --- Re-ignore: heavy / secret / transient inside whitelist -------------
+# Last matching pattern wins, so these close the holes opened by !/dir/**
+
+*.gguf
+*.bin
+*.ggml
+*.safetensors
+
+config/**/.env
+config/**/.env.*
+
+tests/bench-results/**
+!tests/bench-results/.gitkeep
