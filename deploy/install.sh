@@ -66,6 +66,13 @@ if command -v nvidia-smi >/dev/null 2>&1; then
   fi
 fi
 
+# Placeholders for the driver/CUDA package names. They are populated in
+# phase 2 after `apt-get update` so apt-cache sees fresh metadata.
+# Ubuntu releases ship different driver versions (24.04: 560, 26.04: 570+),
+# so we never hardcode a number here.
+DRIVER_PKG=""
+CUDA_PKG=""
+
 # Disk
 DATA_DISK="/data"
 BULK_DISK="/bulk"
@@ -74,6 +81,8 @@ mkdir -p "${DATA_DISK}" "${BULK_DISK}" 2>/dev/null || true
 echo "  ubuntu         ${VERSION_ID}"
 echo "  CPU features   AVX2=${HAS_AVX2}  AVX512=${HAS_AVX512}  FMA=${HAS_FMA}"
 echo "  NVIDIA GPU     hardware=${HAS_NVIDIA_HW}  runtime=${HAS_NVIDIA_RT}"
+echo "  driver pkg     <detected in phase 2>"
+echo "  cuda pkg       <detected in phase 2>"
 echo "  data mount     ${DATA_DISK} (created if missing)"
 echo "  bulk mount     ${BULK_DISK} (created if missing)"
 
@@ -94,10 +103,15 @@ PKGS=(build-essential cmake git curl wget jq python3 python3-venv
       python3-pip nginx sqlite3 uuid-runtime ca-certificates
       libssl-dev pkg-config lm-sensors nvme-cli smartmontools)
 
-# Add nvidia driver only if hardware is present. Runtime check happens later;
-# a freshly-installed driver needs a reboot to load its kernel module.
-if [ "${HAS_NVIDIA_HW}" = y ]; then
-  PKGS+=(nvidia-driver-555 nvidia-cuda-toolkit)
+# Add the detected NVIDIA driver + CUDA toolkit if hardware is present.
+# If detection failed (DRIVER_PKG empty), we keep going on CPU and let
+# the operator install the driver manually — the runtime check in phase 3
+# will still defer the CUDA build correctly.
+if [ "${HAS_NVIDIA_HW}" = y ] && [ -n "${DRIVER_PKG}" ]; then
+  PKGS+=("${DRIVER_PKG}")
+  if [ -n "${CUDA_PKG}" ]; then
+    PKGS+=("${CUDA_PKG}")
+  fi
 fi
 
 if ! dpkg -s "${PKGS[@]}" >/dev/null 2>&1; then
@@ -105,6 +119,35 @@ if ! dpkg -s "${PKGS[@]}" >/dev/null 2>&1; then
   apt-get install -y --no-install-recommends "${PKGS[@]}"
 else
   echo "  all required apt packages already present"
+fi
+
+# After apt-get update the package cache is fresh. Detect the NVIDIA
+# driver/CUDA package names available for THIS Ubuntu release.
+# This used to be pinned to nvidia-driver-555; that broke on Ubuntu 26.04.
+if [ "${HAS_NVIDIA_HW}" = y ] && [ -z "${DRIVER_PKG}" ]; then
+  # Prefer the latest numbered nvidia-driver-* (sort -V picks highest version).
+  DRIVER_PKG=$(apt-cache search '^nvidia-driver-[0-9]+$' 2>/dev/null \
+                | awk '{print $1}' | sort -V | tail -1 || true)
+  # Fallback: metapackage.
+  if [ -z "${DRIVER_PKG}" ] \
+     && apt-cache show nvidia-driver >/dev/null 2>&1; then
+    DRIVER_PKG="nvidia-driver"
+  fi
+  # CUDA toolkit: prefer numbered, else metapackage.
+  CUDA_PKG=$(apt-cache search '^nvidia-cuda-toolkit-[0-9]+$' 2>/dev/null \
+              | awk '{print $1}' | sort -V | tail -1 || true)
+  if [ -z "${CUDA_PKG}" ] \
+     && apt-cache show nvidia-cuda-toolkit >/dev/null 2>&1; then
+    CUDA_PKG="nvidia-cuda-toolkit"
+  fi
+  # If we found a driver now, install it (apt-get was a no-op above because
+  # we hadn't decided yet). Use apt-get install -y directly.
+  if [ -n "${DRIVER_PKG}" ]; then
+    echo "  detected NVIDIA packages: ${DRIVER_PKG}${CUDA_PKG:+ $CUDA_PKG}"
+    apt-get install -y --no-install-recommends "${DRIVER_PKG}" ${CUDA_PKG:+"${CUDA_PKG}"}
+  else
+    warn "no nvidia-driver-* package found in apt; install the driver manually"
+  fi
 fi
 
 # Service user (idempotent)

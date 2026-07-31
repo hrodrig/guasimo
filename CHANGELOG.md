@@ -16,7 +16,11 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
 - (none yet)
 
 ### Fixed
-- (none yet)
+- `deploy/install.sh`: stopped pinning `nvidia-driver-555`. The package
+  name is now detected from `apt-cache` (highest `nvidia-driver-*` for
+  the current Ubuntu release), with a fallback to the `nvidia-driver`
+  metapackage. Fixes the "Unable to locate package nvidia-driver-555"
+  error on Ubuntu 26.04, where the version in the archive is different.
 
 ### Removed
 - (none yet)

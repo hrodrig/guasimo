@@ -46,7 +46,11 @@ Installs via `apt`:
 
 - build-essential, cmake, git, curl, jq, python3-pip, nginx, sqlite3,
   uuid-runtime, ca-certificates, libssl-dev.
-- `nvidia-driver-5xx` and `cuda-toolkit` only if NVIDIA GPU detected.
+- `nvidia-driver-<ver>` and `nvidia-cuda-toolkit-<ver>` only if NVIDIA GPU
+  detected. The version number is **not** pinned; the script queries
+  `apt-cache` for the latest `nvidia-driver-*` available in the current
+  Ubuntu release. If none is found, the script warns and continues on
+  CPU.
 - `linux-tools-$(uname -r)` and `powertop` for benchmarking.
 
 Uses `apt-mark hold` only when we have a known-good pinned version.

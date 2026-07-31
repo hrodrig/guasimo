@@ -101,9 +101,10 @@ reproducible on rebuild.
 
 ### Driver install timing
 
-`install.sh` installs `nvidia-driver-555` (or whatever apt offers for
-Ubuntu 26.04) but **cannot load the module** during the install — a
-running kernel won't pick it up until the next reboot. The script:
+`install.sh` installs the NVIDIA driver (the package name is detected
+from `apt-cache`, not pinned — Ubuntu releases ship different versions)
+but **cannot load the module** during the install — a running kernel
+won't pick it up until the next reboot. The script:
 
 1. Installs the driver package.
 2. Runs `nvidia-smi` to test. If it fails, the script logs a clear
