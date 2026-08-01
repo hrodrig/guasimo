@@ -10,10 +10,13 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
 ## [Unreleased]
 
 ### Added
-- (none yet)
+- `docs/assets/ollama-pull-qwen25-coder-14b-ok.png`: evidence that
+  `./scripts/pull-models.sh primary` completed on the Ubuntu 26.04 +
+  RTX 3060 box (linked from `docs/04-models.md`, `docs/09-roadmap.md`).
 
 ### Changed
-- (none yet)
+- `docs/09-roadmap.md` / `SPECIFICATIONS.md`: mark primary pull as done
+  (2026-08-01); secondary / benchmark / healthcheck still open.
 
 ### Fixed
 - `deploy/install.sh`: chown `/data/models` to the Ollama service user
@@ -66,9 +69,8 @@ llama.cpp, Ollama, Open WebUI, nginx TLS). Operator still runs
   NVIDIA leftovers that collide with versioned CUDA-repo packages.
 
 ### Known limitations
-- Full v0.2 exit criterion (pull + benchmark + healthcheck green with a
-  loaded model) still depends on the operator finishing
-  `./scripts/pull-models.sh primary` on the box.
+- Full v0.2 exit criterion still needs `benchmark.sh primary` + green
+  `healthcheck.sh` with the loaded model (primary pull done 2026-08-01).
 - Let's Encrypt and firewall open remain manual / separate scripts.
 
 ## [0.1.0] - 2026-07-30

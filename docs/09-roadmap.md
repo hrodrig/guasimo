@@ -13,8 +13,11 @@ Deliverables:
       (2026-07-31): CUDA `llama.cpp` (b4568 + GCC 15 patch), Ollama,
       Open WebUI 0.6.x (Python 3.12 via uv), nginx TLS. Lessons from
       that run live in `docs/08-troubleshooting.md`.
-- [ ] `scripts/pull-models.sh primary secondary` exercised end-to-end
-      on the validated box (downloads GGUF blobs).
+- [x] `scripts/pull-models.sh primary` exercised end-to-end on the
+      validated box (2026-08-01): `qwen2.5-coder:14b-instruct-q4_K_M`
+      ~9 GB; see `docs/04-models.md` +
+      `docs/assets/ollama-pull-qwen25-coder-14b-ok.png`.
+      (`secondary` still optional / not yet pulled.)
 - [ ] `scripts/benchmark.sh primary` prints tokens/s on the box.
 - [ ] `scripts/healthcheck.sh` exits 0 on the working stack.
 

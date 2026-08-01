@@ -26,6 +26,13 @@ For a coding LLM on a 32 GB CPU box we want:
 This is the daily driver. Use it for code completion, refactor, review,
 explanation, docstring writing, and language translation between Go ↔ C#.
 
+### Validated pull (Ubuntu 26.04 + RTX 3060)
+
+Real capture after `./scripts/pull-models.sh primary` (2026-08-01):
+registry layers verified, manifest written, model listed as 9.0 GB.
+
+![ollama pull qwen2.5-coder:14b-instruct-q4_K_M — success](assets/ollama-pull-qwen25-coder-14b-ok.png)
+
 ## Secondary model — Qwen2.5-Coder-7B-Instruct (Q4_K_M)
 
 | Attribute         | Value                                       |

@@ -169,6 +169,9 @@ Next steps:
 Chat URL is **HTTPS on nginx :443**, not bare `:8080` (Open WebUI binds
 loopback only). The exact hostname comes from `hostname -f`.
 
+Primary-model pull was validated on the reference box (2026-08-01); see
+the capture in `docs/04-models.md`.
+
 ## Rollback
 
 `deploy/uninstall.sh` removes every artefact created by `install.sh`. It
