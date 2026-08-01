@@ -29,6 +29,11 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
   pre-rebrand installs.
 
 ### Fixed
+- `deploy/install.sh`: after cloning llama.cpp `b4568`, patch
+  `src/llama-mmap.h` to `#include <cstdint>` when missing. GCC 15 on
+  Ubuntu 26.04 no longer provides `uint32_t` via transitive headers;
+  without the patch the build dies with `‘uint32_t’ does not name a
+  type` (upstream fix is ggml-org/llama.cpp#11796, post-`b4568`).
 - `deploy/install.sh`: stopped pinning `nvidia-driver-555`. The package
   name is now detected from `apt-cache` (highest `nvidia-driver-*` for
   the current Ubuntu release), with a fallback to the `nvidia-driver`

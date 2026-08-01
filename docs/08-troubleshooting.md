@@ -76,6 +76,35 @@ If the venv is broken (e.g. after a Python upgrade), re-run
 The cert is self-signed. The browser will warn. Click through for v1, or
 replace the cert per `docs/06-networking-and-security.md`.
 
+## Symptom: llama.cpp build fails with `uint32_t` does not name a type
+
+On Ubuntu 26.04 (GCC 15), building pinned llama.cpp `b4568` dies in
+`src/llama-mmap.h`:
+
+```
+error: ‘uint32_t’ does not name a type
+   26 |     uint32_t read_u32() const;
+note: ‘uint32_t’ is defined in header ‘<cstdint>’; this is probably
+      fixable by adding ‘#include <cstdint>’
+```
+
+GCC 15 stopped leaking fixed-width types through `<vector>` /
+`<memory>`. Upstream fixed it in ggml-org/llama.cpp#11796; our pin is
+older. `install.sh` patches the header after clone when `<cstdint>` is
+missing.
+
+Manual recovery if you hit this mid-build:
+
+    sudo sed -i '/#pragma once/a\
+\
+#include <cstdint>' /opt/guasimo/llama.cpp/src/llama-mmap.h
+    sudo ./deploy/install.sh
+
+Or one-shot rebuild without re-running the full install:
+
+    cd /opt/guasimo/llama.cpp
+    sudo cmake --build build --parallel
+
 ## Symptom: NVIDIA GPU detected but ignored
 
 `install.sh` only enables CUDA when `nvidia-smi` works **as a non-root

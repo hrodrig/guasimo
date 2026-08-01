@@ -320,6 +320,27 @@ if [ "${NEED_BUILD}" = y ] && [ "${USE_CUDA}" = n ] \
   NEED_BUILD=n
 fi
 
+# GCC 15 (Ubuntu 26.04) no longer transitively provides uint32_t via
+# <vector>/<memory>. llama.cpp b4568 predates upstream fix #11796
+# (add #include <cstdint> to src/llama-mmap.h). Patch in place when
+# missing so the pin stays compatible with this toolchain.
+patch_llama_gcc15() {
+  local hdr="${LLAMA_SRC_DIR}/src/llama-mmap.h"
+  [ -f "${hdr}" ] || return 0
+  if grep -q '#include <cstdint>' "${hdr}"; then
+    return 0
+  fi
+  echo "  patching src/llama-mmap.h for GCC 15 (#include <cstdint>)"
+  # Insert after #pragma once (or at top if absent).
+  if grep -q '#pragma once' "${hdr}"; then
+    sed -i '/#pragma once/a\
+\
+#include <cstdint>' "${hdr}"
+  else
+    sed -i '1i#include <cstdint>\n' "${hdr}"
+  fi
+}
+
 if [ "${NEED_BUILD}" = y ]; then
   if [ ! -d "${LLAMA_SRC_DIR}" ]; then
     git clone --depth=1 --branch "${LLAMA_CPP_REF}" \
@@ -328,6 +349,7 @@ if [ "${NEED_BUILD}" = y ]; then
     git -C "${LLAMA_SRC_DIR}" fetch --depth=1 origin "${LLAMA_CPP_REF}"
     git -C "${LLAMA_SRC_DIR}" checkout FETCH_HEAD
   fi
+  patch_llama_gcc15
   cmake -S "${LLAMA_SRC_DIR}" -B "${LLAMA_SRC_DIR}/build" \
         -DCMAKE_BUILD_TYPE=Release "${CMAKE_FLAGS[@]}"
   cmake --build "${LLAMA_SRC_DIR}/build" --parallel
