@@ -35,6 +35,8 @@ rm -f /etc/nginx/sites-enabled/ia-lab.conf /etc/nginx/sites-available/ia-lab.con
 nginx -t 2>/dev/null && systemctl reload nginx || true
 
 rm -rf "${INSTALL_ROOT}" "${LEGACY_ROOT}"
+# uv-managed CPython + binary live under INSTALL_ROOT; legacy leftovers
+# outside that tree are not expected. Certs:
 rm -rf /etc/nginx/ssl/guasimo /etc/nginx/ssl/ia-lab
 
 for u in "${SERVICE_USER}" "${LEGACY_USER}"; do

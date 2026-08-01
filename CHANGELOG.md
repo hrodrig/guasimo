@@ -27,10 +27,12 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
   `guasimo.target`, nginx `guasimo.conf`, health `GET /guasimo-health`.
   `uninstall.sh` also removes leftover `/opt/ia-lab` artefacts from
   pre-rebrand installs.
-- Open WebUI pin `0.3.21` → `0.6.43`. The venv is created with
-  `python3.12` (package installed if missing) because Ubuntu 26.04's
-  default `python3` is 3.13+ and Open WebUI still requires
-  `Requires-Python >=3.11,<3.13`.
+- Open WebUI pin `0.3.21` → `0.6.43`. The venv uses Python 3.12 because
+  Open WebUI still requires `Requires-Python >=3.11,<3.13`. Ubuntu 26.04
+  has no `python3.12` apt package (archive is 3.13+ only), so when no
+  distro 3.11/3.12 is present the installer bootstraps [uv](https://github.com/astral-sh/uv)
+  under `/opt/guasimo/uv` and installs CPython 3.12 into
+  `/opt/guasimo/python`.
 
 ### Fixed
 - `deploy/install.sh`: mark `/opt/guasimo/llama.cpp` as a git

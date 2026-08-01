@@ -82,12 +82,18 @@ Ubuntu 26.04's system `python3` is 3.13+. Open WebUI still declares
 `Requires-Python >=3.11,<3.13`, so pip on a 3.13 venv ignores every
 release (including the pin) and reports "from versions: none".
 
-`install.sh` installs `python3.12` / `python3.12-venv` and builds the
-WebUI venv with that interpreter. Manual recovery:
+There is also no `python3.12` package in the Ubuntu 26.04 archive.
+`install.sh` bootstraps [uv](https://github.com/astral-sh/uv) under
+`/opt/guasimo/uv`, installs CPython 3.12 into `/opt/guasimo/python`, and
+builds the WebUI venv with that interpreter. Manual recovery:
 
-    sudo apt-get install -y python3.12 python3.12-venv
     sudo rm -rf /opt/guasimo/webui-venv
     sudo ./deploy/install.sh
+
+## Symptom: `Unable to locate package python3.12`
+
+Expected on Ubuntu 26.04 — the archive only ships 3.13+. Do not add
+random PPAs; let `install.sh` provision 3.12 via uv (see above).
 
 ## Symptom: llama.cpp build fails with `uint32_t` does not name a type
 

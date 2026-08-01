@@ -182,9 +182,8 @@ export DEBIAN_FRONTEND=noninteractive
 recover_dpkg
 
 PKGS=(build-essential cmake git curl wget jq python3 python3-venv
-      python3-pip python3.12 python3.12-venv nginx sqlite3 uuid-runtime
-      ca-certificates libssl-dev pkg-config lm-sensors nvme-cli
-      smartmontools)
+      python3-pip nginx sqlite3 uuid-runtime ca-certificates
+      libssl-dev pkg-config lm-sensors nvme-cli smartmontools)
 
 # Add the detected NVIDIA driver + CUDA toolkit if hardware is present.
 # If detection failed (DRIVER_PKG empty), we keep going on CPU and let
@@ -429,25 +428,43 @@ systemctl enable --now ollama
 # ---------------------------------------------------------------------------
 banner "phase 5/5  open-webui + nginx"
 
-# Open WebUI wheels require Python >=3.11,<3.13. Prefer 3.12; fall back
-# to 3.11. Refuse the system python3 if it is 3.13+ (Ubuntu 26.04 default).
-WEBUI_PYTHON=""
-for cand in python3.12 python3.11; do
-  if command -v "${cand}" >/dev/null 2>&1; then
-    WEBUI_PYTHON="${cand}"
-    break
+# Open WebUI wheels require Python >=3.11,<3.13. Ubuntu 26.04 (resolute)
+# ships only python3.13+ in the archive — no python3.12 package. Prefer a
+# distro 3.11/3.12 if present; otherwise bootstrap CPython 3.12 via uv
+# into INSTALL_ROOT (no PPA, no system PATH pollution).
+ensure_webui_python() {
+  local cand
+  for cand in python3.12 python3.11; do
+    if command -v "${cand}" >/dev/null 2>&1; then
+      WEBUI_PYTHON=$(command -v "${cand}")
+      return 0
+    fi
+  done
+
+  UV_DIR="${INSTALL_ROOT}/uv"
+  UV_BIN="${UV_DIR}/uv"
+  UV_PYTHON_DIR="${INSTALL_ROOT}/python"
+  mkdir -p "${UV_DIR}" "${UV_PYTHON_DIR}"
+  if [ ! -x "${UV_BIN}" ]; then
+    echo "  bootstrapping uv into ${UV_DIR} (no python3.12 in apt)"
+    curl -LsSf https://astral.sh/uv/install.sh \
+      | env UV_UNMANAGED_INSTALL="${UV_DIR}" sh
   fi
-done
-if [ -z "${WEBUI_PYTHON}" ]; then
-  echo "  installing python3.12 for Open WebUI venv"
-  apt-get install -y --no-install-recommends python3.12 python3.12-venv
-  WEBUI_PYTHON="python3.12"
-fi
-command -v "${WEBUI_PYTHON}" >/dev/null 2>&1 \
-  || die "need python3.12 or python3.11 for Open WebUI; ${WEBUI_PYTHON} missing"
+  [ -x "${UV_BIN}" ] || die "uv bootstrap failed; expected ${UV_BIN}"
+  echo "  installing CPython 3.12 via uv into ${UV_PYTHON_DIR}"
+  UV_PYTHON_INSTALL_DIR="${UV_PYTHON_DIR}" \
+    "${UV_BIN}" python install 3.12
+  WEBUI_PYTHON=$(UV_PYTHON_INSTALL_DIR="${UV_PYTHON_DIR}" \
+    "${UV_BIN}" python find 3.12)
+  [ -n "${WEBUI_PYTHON}" ] && [ -x "${WEBUI_PYTHON}" ] \
+    || die "uv python find 3.12 returned nothing"
+}
+
+WEBUI_PYTHON=""
+ensure_webui_python
 WEBUI_PY_MINOR=$("${WEBUI_PYTHON}" -c 'import sys; print(sys.version_info.minor)')
-if [ "${WEBUI_PY_MINOR}" -gt "${WEBUI_PYTHON_MAX}" ]; then
-  die "Open WebUI needs Python 3.11–3.12; ${WEBUI_PYTHON} is 3.${WEBUI_PY_MINOR}"
+if [ "${WEBUI_PY_MINOR}" -lt 11 ] || [ "${WEBUI_PY_MINOR}" -gt "${WEBUI_PYTHON_MAX}" ]; then
+  die "Open WebUI needs Python 3.11–3.12; got ${WEBUI_PYTHON} (3.${WEBUI_PY_MINOR})"
 fi
 echo "  Open WebUI venv python: ${WEBUI_PYTHON} (3.${WEBUI_PY_MINOR})"
 
@@ -468,7 +485,8 @@ fi
 if [ "${NEED_VENV}" = y ]; then
   "${WEBUI_PYTHON}" -m venv "${WEBUI_VENV}"
 fi
-chown -R "${SERVICE_USER}:${SERVICE_USER}" "${WEBUI_VENV}"
+chown -R "${SERVICE_USER}:${SERVICE_USER}" "${WEBUI_VENV}" \
+  "${INSTALL_ROOT}/uv" "${INSTALL_ROOT}/python" 2>/dev/null || true
 "${WEBUI_VENV}/bin/pip" install --upgrade pip wheel >/dev/null
 "${WEBUI_VENV}/bin/pip" install \
   "open-webui==${OPEN_WEBUI_VERSION}" "httpx" "uvicorn"

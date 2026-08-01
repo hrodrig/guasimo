@@ -44,8 +44,7 @@ Exits non-zero on Ubuntu version mismatch.
 
 Installs via `apt`:
 
-- build-essential, cmake, git, curl, jq, python3-pip, python3.12,
-  python3.12-venv, nginx, sqlite3,
+- build-essential, cmake, git, curl, jq, python3-pip, nginx, sqlite3,
   uuid-runtime, ca-certificates, libssl-dev.
 - `nvidia-driver-<ver>` and `nvidia-cuda-toolkit-<ver>` only if NVIDIA GPU
   detected. The version number is **not** pinned; the script queries
@@ -77,7 +76,9 @@ Uses `apt-mark hold` only when we have a known-good pinned version.
 ### Phase 5 — Open WebUI + nginx
 
 - Creates a Python 3.12 venv at `/opt/guasimo/webui-venv` (Open WebUI
-  requires `>=3.11,<3.13`; Ubuntu 26.04's default `python3` is too new).
+  requires `>=3.11,<3.13`). Ubuntu 26.04 has no `python3.12` apt package,
+  so the script bootstraps `uv` under `/opt/guasimo/uv` and installs
+  CPython 3.12 into `/opt/guasimo/python` when needed.
 - `pip install open-webui==0.6.43` (pin in `deploy/install.sh`).
 - Drops the systemd unit from `deploy/systemd/open-webui.service`.
 - Drops the nginx vhost from `deploy/nginx/sites-available/guasimo.conf` and
