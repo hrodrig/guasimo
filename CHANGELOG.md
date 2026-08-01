@@ -10,91 +10,64 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
 ## [Unreleased]
 
 ### Added
-- `docs/05-deployment.md`: documented the pre-flight step for adding the
-  NVIDIA CUDA repo on Ubuntu 26.04, where the driver does not ship in
-  the main archive.
-- `docs/08-troubleshooting.md`: documented the mixed NVIDIA packaging
-  collision (`nvidia-firmware` vs `nvidia-firmware-610-*`) validated on
-  Ubuntu 26.04 — root cause, symptoms, failed recovery paths
-  (`apt-get remove` / bare `apt-get -f install`), and the working fix
-  (`dpkg --purge --force-depends` then `apt-get -f install`).
-- `docs/05-deployment.md`: warning not to mix Ubuntu-archive and CUDA-repo
-  NVIDIA packages on the same box.
+- (none yet)
+
+### Changed
+- (none yet)
+
+### Fixed
+- (none yet)
+
+### Removed
+- (none yet)
+
+## [0.2.0] - 2026-07-31
+
+Minimum viable install path, validated on real Ubuntu 26.04 + RTX 3060
+hardware. `sudo ./deploy/install.sh` reaches a running stack (CUDA
+llama.cpp, Ollama, Open WebUI, nginx TLS). Operator still runs
+`pull-models.sh` / `benchmark.sh` after install.
+
+### Added
+- `docs/05-deployment.md`: pre-flight for the NVIDIA CUDA apt repo on
+  Ubuntu 26.04 (driver not in the main archive).
+- `docs/08-troubleshooting.md`: mixed NVIDIA packaging collision
+  (`nvidia-firmware` vs `nvidia-firmware-610-*`), GCC 15 /
+  `uint32_t`, Open WebUI Python 3.12 via uv, CPU-only torch, TLS-before-
+  `nginx -t`, and related recovery paths — with real console excerpts.
+- `docs/05-deployment.md`: warning not to mix Ubuntu-archive and
+  CUDA-repo NVIDIA packages on the same box.
 
 ### Changed
 - Runtime paths and service identity renamed from `ia-lab` to `guasimo`:
   `/opt/guasimo`, user `guasimo`, `/var/log/guasimo`, systemd
   `guasimo.target`, nginx `guasimo.conf`, health `GET /guasimo-health`.
-  `uninstall.sh` also removes leftover `/opt/ia-lab` artefacts from
-  pre-rebrand installs.
-- Open WebUI pin `0.3.21` → `0.6.43`. The venv uses Python 3.12 because
-  Open WebUI still requires `Requires-Python >=3.11,<3.13`. Ubuntu 26.04
-  has no `python3.12` apt package (archive is 3.13+ only), so when no
-  distro 3.11/3.12 is present the installer bootstraps [uv](https://github.com/astral-sh/uv)
-  under `/opt/guasimo/uv` and installs CPython 3.12 into
-  `/opt/guasimo/python`.
-- Before `pip install open-webui`, install **CPU-only** `torch` from the
-  PyTorch CPU index so pip does not also fetch `nvidia-*-cu13` wheels
-  (~1 GB+) that duplicate the host driver and are unused (Ollama owns
-  the GPU).
+  `uninstall.sh` also removes leftover `/opt/ia-lab` artefacts.
+- Open WebUI pin `0.3.21` → `0.6.43`. Venv uses Python 3.12 (Ubuntu
+  26.04 has no `python3.12` apt package) via [uv](https://github.com/astral-sh/uv)
+  under `/opt/guasimo/uv` + CPython under `/opt/guasimo/python`.
+- Before `pip install open-webui`, install **CPU-only** `torch` so pip
+  does not fetch unused `nvidia-*-cu13` wheels (~1 GB+).
+- `scripts/pull-models.sh`: writable pull log fallback
+  (`~/.cache/guasimo/`); ollama CLI as invoking user.
+- `scripts/healthcheck.sh`: non-root-friendly nginx check; accept WebUI
+  HTTP 302.
 
 ### Fixed
-- `deploy/install.sh`: generate the self-signed TLS cert **before**
-  `nginx -t`. First install previously failed with
-  `cannot load certificate "/etc/nginx/ssl/guasimo/fullchain.pem"`
-  because the vhost was tested before openssl created the files.
-- `deploy/install.sh`: mark `/opt/guasimo/llama.cpp` as a git
-  `safe.directory` for root (global) so cmake's `build_info` target
-  stops spamming "dubious ownership". Compare llama.cpp pin via
-  resolved commit SHA (tag `b4568` ≠ short SHA `a4417dd`), so a
-  finished CUDA build is not rebuilt on every re-run. Treat
-  `build/bin/llama-server` as already-built, not only the install
-  symlink.
-- `deploy/install.sh`: after cloning llama.cpp `b4568`, patch
-  `src/llama-mmap.h` to `#include <cstdint>` when missing. GCC 15 on
-  Ubuntu 26.04 no longer provides `uint32_t` via transitive headers;
-  without the patch the build dies with `‘uint32_t’ does not name a
-  type` (upstream fix is ggml-org/llama.cpp#11796, post-`b4568`).
-- `deploy/install.sh`: stopped pinning `nvidia-driver-555`. The package
-  name is now detected from `apt-cache` (highest `nvidia-driver-*` for
-  the current Ubuntu release), with a fallback to the `nvidia-driver`
-  metapackage. Fixes the "Unable to locate package nvidia-driver-555"
-  error on Ubuntu 26.04, where the version in the archive is different.
-- `deploy/install.sh`: also re-queries `apt-cache` if the first attempt
-  returns nothing but a `nvidia`/`cuda` sources.list file is present
-  (covers the case where the NVIDIA CUDA repo is configured but the
-  driver detection needs an extra nudge).
-- `deploy/install.sh`: added `recover_dpkg()` and call it at the start of
-  phase 2 before any `apt-get` operation. It covers two distinct failure
-  modes that previously left the box stuck and every re-run failing the
-  same way:
-  (a) a half-configured dpkg database (interrupted unpack, power loss,
-  Ctrl-C) — repaired with `dpkg --configure -a`, gated on `dpkg --audit`;
-  (b) a broken apt dependency graph that `dpkg --audit` misses — e.g.
-  `nvidia-driver-610` marked "installed" by dpkg but its deps
-  (`nvidia-firmware-610`, `libnvidia-gl-610`, `libnvidia-cfg1-610`)
-  unmet, so apt's resolver refuses with "Unmet dependencies" /
-  "it is not going to be installed" — repaired with `apt-get -f install`,
-  gated on `apt-get check`. Both are no-ops when the system is clean.
-- `deploy/install.sh`: the NVIDIA driver install is no longer fatal.
-  `set -e` previously killed the whole install when the driver unpack
-  failed (e.g. `nvidia-firmware-610`, `libnvidia-cfg1-610`,
-  `libnvidia-gl-610` failing to unpack), leaving the box with no
-  `llama-server` built. The script now catches the failure, runs
-  `recover_dpkg` to clean up, downgrades the box to CPU-only for that
-  run, and proceeds to build a working CPU `llama.cpp`. The operator
-  fixes the driver and re-runs to enable CUDA. This aligns the script
-  with the `docs/05-deployment.md` contract ("warn and continue on CPU").
-- `deploy/install.sh`: when `apt-get -f install` fails because unversioned
-  Ubuntu NVIDIA packages (`nvidia-firmware`, `libnvidia-cfg1`,
-  `libnvidia-egl-wayland21`, …) collide with versioned CUDA-repo
-  siblings (`nvidia-firmware-610-*`, `libnvidia-cfg1-610`, …) that own
-  the same files, purge the unversioned leftovers and retry. Also makes
-  `recover_dpkg` non-fatal under `set -e` so a stuck apt graph cannot
-  abort the whole install before the CPU fallback path runs.
+- TLS cert generated **before** `nginx -t` on first install.
+- Git `safe.directory` for `/opt/guasimo/llama.cpp` under root; pin
+  compare via resolved commit SHA (tag `b4568` ≠ short SHA).
+- llama.cpp `b4568` patched for GCC 15 (`#include <cstdint>` in
+  `llama-mmap.h`; upstream #11796).
+- NVIDIA driver package detected from `apt-cache` (no hard-coded 555).
+- `recover_dpkg()` + non-fatal NVIDIA driver install; purge unversioned
+  NVIDIA leftovers that collide with versioned CUDA-repo packages.
 
-### Removed
-- (none yet)
+### Known limitations
+- Full v0.2 exit criterion (pull + benchmark + healthcheck green with a
+  loaded model) still depends on the operator finishing
+  `./scripts/pull-models.sh primary` on the box.
+- Let's Encrypt and firewall open remain manual / separate scripts.
 
 ## [0.1.0] - 2026-07-30
 
@@ -142,5 +115,6 @@ Initial scaffolding. A new operator can read `SPECIFICATIONS.md` and
 - Firewall is **not** opened automatically. `scripts/open-firewall.sh`
   is the explicit, audited path.
 
-[Unreleased]: https://github.com/hrodrig/guasimo/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/hrodrig/guasimo/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/hrodrig/guasimo/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/hrodrig/guasimo/releases/tag/v0.1.0

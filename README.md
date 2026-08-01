@@ -67,7 +67,7 @@ Open WebUI listens on loopback `:8080`; nginx terminates TLS on `:443`.
 
 ## Status
 
-Install path validated on real Ubuntu 26.04 + RTX 3060 hardware
+**v0.2.0** — install path validated on real Ubuntu 26.04 + RTX 3060
 (2026-07-31): CUDA `llama.cpp`, Ollama, Open WebUI 0.6.x, nginx TLS.
-Next operator step after install: pull models + benchmark. Design
-contract in `docs/`; roadmap in `docs/09-roadmap.md`.
+Next after install: `pull-models.sh` + `benchmark.sh`. Design contract
+in `docs/`; roadmap in `docs/09-roadmap.md`.

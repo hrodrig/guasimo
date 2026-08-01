@@ -5,7 +5,7 @@
 Scaffolding and documentation. A new operator can read `docs/` and
 understand the system without running anything.
 
-## v0.2 — Minimum viable install (in progress)
+## v0.2 — Minimum viable install (tagged `v0.2.0`)
 
 Deliverables:
 
@@ -18,9 +18,9 @@ Deliverables:
 - [ ] `scripts/benchmark.sh primary` prints tokens/s on the box.
 - [ ] `scripts/healthcheck.sh` exits 0 on the working stack.
 
-Exit criterion: after `install.sh` + `pull-models.sh primary`, the
-operator has a working chat UI on `https://<hostname>/` answering
-with the primary model.
+Exit criterion (close when the unchecked items land): after
+`install.sh` + `pull-models.sh primary`, the operator has a working
+chat UI on `https://<hostname>/` answering with the primary model.
 
 ## v0.3 — Production polish
 
