@@ -66,7 +66,9 @@ performance.
 - Secondary: `qwen2.5-coder:7b-instruct-q4_K_M` (~5 GB).
 - Large (optional, partial offload):
   `qwen2.5-coder:32b-instruct-q4_K_M` (~20 GB).
-- All three are pre-trained upstream. No fine-tuned variants ship with
+- Optional nicknames in `scripts/pull-models.sh`:
+  `gemma` → `gemma4:12b`; `deepseek` → `deepseek-coder-v2:lite`.
+- These are upstream registry pulls. No fine-tuned variants ship with
   this project.
 
 ## Versions

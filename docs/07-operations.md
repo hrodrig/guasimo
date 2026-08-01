@@ -9,7 +9,7 @@ After install, day-to-day operation is one of:
 | Start the stack after a reboot           | `sudo systemctl start guasimo.target`     |
 | Stop the stack                            | `sudo systemctl stop guasimo.target`      |
 | See status of all three services          | `systemctl status 'ollama\|llama-cpp\|open-webui'` |
-| Pull a new model                          | `./scripts/pull-models.sh <name>`        |
+| Pull a new model                          | `./scripts/pull-models.sh <nickname\|tag>` (`primary`, `secondary`, `gemma`, `deepseek`, …) |
 | Drop a model                              | `ollama rm <name>`                       |
 | Re-render the nginx config                | `sudo nginx -t && sudo systemctl reload nginx` |
 | Tail logs                                 | `journalctl -u ollama -u open-webui -f`  |

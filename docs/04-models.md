@@ -59,19 +59,50 @@ The 32 B variant is pulled on demand via `scripts/pull-models.sh large`
 for cases where the larger context window or stronger long-form reasoning
 is worth the speed hit.
 
-## Why Qwen2.5-Coder, not Llama / Mistral / DeepSeek
+## Optional — Gemma 4 12B (`gemma`)
 
-| Model family              | Coding score (LiveCodeBench, Feb 2026) | Self-host on RTX 3060 (12 GB)? | Verdict |
-|---------------------------|----------------------------------------|--------------------------------|---------|
-| Qwen2.5-Coder-14B-Instruct| High                                   | Yes, comfortably (Q4)          | Chosen  |
-| DeepSeek-Coder-V2-Lite    | Medium-high                            | Yes                             | Backup  |
-| Llama-3.1-8B-Instruct     | Medium                                 | Yes, fast                       | Niche   |
-| Mistral-Codestral-22B     | High                                   | Yes, tight                      | Considered, larger |
-| CodeLlama-70B             | High                                   | No (needs ≥ 40 GB)              | Excluded |
+| Attribute         | Value                                       |
+|-------------------|---------------------------------------------|
+| Ollama tag        | `gemma4:12b`                                |
+| Nickname          | `./scripts/pull-models.sh gemma`            |
+| Disk              | ~8 GB                                       |
+| Self-host 3060    | Yes at Q4; 8–16K ctx comfortable; 64K tight |
+| Licence           | Apache-2.0 (Gemma 4)                        |
+| Why               | Strong tool-calling / agent UX; multimodal  |
 
-The Qwen2.5-Coder family dominates the open coding benchmark in 2025-2026
-and has multiple sizes (0.5 / 1.5 / 3 / 7 / 14 / 32 B) so we can swap by
-model size without changing tooling.
+Not the daily coding driver (Qwen2.5-Coder still wins on pure code), but
+a good alternate for Hermes Agent and Open WebUI tool workflows. Prefer
+this or `secondary` (7B coder) when 14B @ Hermes’ 64K floor feels too
+slow.
+
+## Optional — DeepSeek-Coder-V2-Lite (`deepseek`)
+
+| Attribute         | Value                                       |
+|-------------------|---------------------------------------------|
+| Ollama tag        | `deepseek-coder-v2:lite` (~8.9 GB, MoE)     |
+| Nickname          | `./scripts/pull-models.sh deepseek`         |
+| Self-host 3060    | Yes                                         |
+| Licence           | DeepSeek licence (open weights; check card) |
+| Why               | Strong coding backup; different training    |
+
+Pull when you want a second opinion vs Qwen on hard refactors. Alias
+`deepseek-lite` accepted by the pull/benchmark scripts.
+
+## Why Qwen2.5-Coder, not Llama / Mistral / …
+
+| Model family              | Coding (self-host focus) | Self-host on RTX 3060 (12 GB)? | Verdict |
+|---------------------------|--------------------------|--------------------------------|---------|
+| Qwen2.5-Coder-14B-Instruct| High                     | Yes, comfortably (Q4 @ 8K)     | Primary |
+| Qwen2.5-Coder-7B-Instruct | High / fast              | Yes                            | Secondary |
+| Gemma 4 12B               | High (agents / tools)    | Yes (64K tight)                | Optional `gemma` |
+| DeepSeek-Coder-V2-Lite    | Medium-high              | Yes                            | Optional `deepseek` |
+| Llama-3.1-8B-Instruct     | Medium                   | Yes, fast                      | Niche   |
+| Mistral-Codestral-22B     | High                     | Yes, tight                     | Considered |
+| CodeLlama-70B             | High                     | No (needs ≥ 40 GB)             | Excluded |
+| Bonsai (1-bit)            | Weak on code             | Tiny, but Ollama/Q1_0 friction | Out of scope |
+
+The Qwen2.5-Coder family remains the default coding stack; Gemma and
+DeepSeek are opt-in pulls for agents and cross-checks.
 
 ## Modelfiles
 

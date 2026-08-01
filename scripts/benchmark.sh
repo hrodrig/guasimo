@@ -16,6 +16,10 @@ declare -A MODELS=(
   [primary]="qwen2.5-coder:14b-instruct-q4_K_M"
   [secondary]="qwen2.5-coder:7b-instruct-q4_K_M"
   [large]="qwen2.5-coder:32b-instruct-q4_K_M"
+  [gemma]="gemma4:12b"
+  [gemma4]="gemma4:12b"
+  [deepseek]="deepseek-coder-v2:lite"
+  [deepseek-lite]="deepseek-coder-v2:lite"
 )
 
 if [ -n "${MODELS[$NAME]+x}" ]; then

@@ -93,6 +93,10 @@ GGUF metadata may still show 32 768 — ignore that for Hermes; set both
 `does not support thinking`, keep the same model and set
 `agent.reasoning_effort: none` (see troubleshooting).
 
+**Speed on RTX 3060:** Hermes’ 64K floor + 14B is slow. Prefer
+`./scripts/pull-models.sh secondary` (7B coder), `gemma`, or `deepseek`
+for agent loops; keep `primary` for WebUI / IDE at 8K.
+
 Upstream: [Hermes providers](https://hermes-agent.nousresearch.com/docs/integrations/providers),
 [Ollama ↔ Hermes](https://docs.ollama.com/integrations/hermes).
 

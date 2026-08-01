@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # scripts/pull-models.sh — pull named models into /bulk and link to /data.
 #
-# Usage: scripts/pull-models.sh {primary|secondary|large|all|<name>}
+# Usage: scripts/pull-models.sh {primary|secondary|large|gemma|deepseek|all|<name>}
 #
 # - primary   : Qwen2.5-Coder-14B-Instruct (Q4_K_M), the daily driver
 # - secondary : Qwen2.5-Coder-7B-Instruct  (Q4_K_M), fast path
 # - large     : Qwen2.5-Coder-32B-Instruct (Q4_K_M), partial offload
+# - gemma     : Gemma 4 12B (Ollama gemma4:12b) — agents / tools
+# - deepseek  : DeepSeek-Coder-V2-Lite (deepseek-coder-v2:lite) — backup coder
 # - all       : primary + secondary
-# - <name>    : any name known to Ollama's registry, e.g. "deepseek-coder-v2:lite"
+# - <name>    : any name known to Ollama's registry
 #
 # Writes land in /bulk/models (cold) and are linked into /data/models (hot)
 # so Ollama's OLLAMA_MODELS directory stays on the fast NVMe.
@@ -29,7 +31,8 @@ else
   PULL_LOG="${LOG_DIR}/pull.log"
 fi
 mkdir -p "${DATA_DIR}" "${BULK_DIR}" 2>/dev/null || true
-chown -R guasimo:guasimo "${DATA_DIR}" "${BULK_DIR}" 2>/dev/null || true
+# Daemon writes as User=ollama — never chown these trees to guasimo.
+chown -R ollama:ollama "${DATA_DIR}" "${BULK_DIR}" 2>/dev/null || true
 
 WHAT="${1:-primary}"
 
@@ -38,6 +41,8 @@ declare -A MODELS=(
   [primary]="qwen2.5-coder:14b-instruct-q4_K_M"
   [secondary]="qwen2.5-coder:7b-instruct-q4_K_M"
   [large]="qwen2.5-coder:32b-instruct-q4_K_M"
+  [gemma]="gemma4:12b"
+  [deepseek]="deepseek-coder-v2:lite"
 )
 
 # Resolve which names to pull.
@@ -46,6 +51,8 @@ case "${WHAT}" in
   primary)   TARGETS=("${MODELS[primary]}") ;;
   secondary) TARGETS=("${MODELS[secondary]}") ;;
   large)     TARGETS=("${MODELS[large]}") ;;
+  gemma|gemma4) TARGETS=("${MODELS[gemma]}") ;;
+  deepseek|deepseek-lite) TARGETS=("${MODELS[deepseek]}") ;;
   all)       TARGETS=("${MODELS[primary]}" "${MODELS[secondary]}") ;;
   *)
     # Treat the arg as a literal ollama name; useful for ad-hoc pulls.
@@ -64,10 +71,12 @@ fi
 EST_GB=0
 for t in "${TARGETS[@]}"; do
   case "$t" in
-    *14b*) EST_GB=$((EST_GB + 9)) ;;
-    *7b*)  EST_GB=$((EST_GB + 5)) ;;
-    *32b*) EST_GB=$((EST_GB + 20)) ;;
-    *)     EST_GB=$((EST_GB + 10)) ;;
+    *14b*)     EST_GB=$((EST_GB + 9)) ;;
+    *7b*)      EST_GB=$((EST_GB + 5)) ;;
+    *32b*)     EST_GB=$((EST_GB + 20)) ;;
+    *gemma4*|*12b*) EST_GB=$((EST_GB + 8)) ;;
+    *deepseek*) EST_GB=$((EST_GB + 9)) ;;
+    *)         EST_GB=$((EST_GB + 10)) ;;
   esac
 done
 FREE_GB=$(df -BG --output=avail "${BULK_DIR}" | tail -1 | tr -dc '0-9')

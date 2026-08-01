@@ -15,9 +15,13 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
   `context_length`; disable thinking with `agent.reasoning_effort: none`
   for Qwen2.5-Coder (HTTP 400 *does not support thinking*). See
   `docs/06-networking-and-security.md`, `docs/08-troubleshooting.md`.
+- Optional model nicknames: `gemma` → `gemma4:12b`, `deepseek` →
+  `deepseek-coder-v2:lite` in `scripts/pull-models.sh` /
+  `scripts/benchmark.sh` (documented in `docs/04-models.md`).
 
 ### Changed
-- (none yet)
+- `scripts/pull-models.sh`: chown model dirs to `ollama` (not `guasimo`)
+  so pulls do not re-break daemon writes.
 
 ### Fixed
 - (none yet)

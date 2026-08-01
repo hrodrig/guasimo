@@ -40,10 +40,13 @@ primary model selected. Evidence:
 
 ## v0.4 — Multiple model recipes
 
-- Add DeepSeek-Coder-V2-Lite-Instruct as a third option.
-- Add Modelfile variants: "explainer" (higher temperature) and "reviewer"
-  (critique mode).
-- Wire model picker into Open WebUI's per-conversation default.
+- [x] DeepSeek-Coder-V2-Lite as pull nickname `deepseek`
+      (`deepseek-coder-v2:lite`) + Gemma 4 12B as `gemma`
+      (`gemma4:12b`) in `scripts/pull-models.sh` / `benchmark.sh`
+      (docs in `docs/04-models.md`). Operator still pulls on demand.
+- [ ] Add Modelfile variants: "explainer" (higher temperature) and
+      "reviewer" (critique mode).
+- [ ] Wire model picker into Open WebUI's per-conversation default.
 
 ## v1.0 — Single-user LAN, stable
 
