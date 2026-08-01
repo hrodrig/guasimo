@@ -301,10 +301,21 @@ if [ "${USE_CUDA}" = n ]; then
   CMAKE_FLAGS+=("-DGGML_NATIVE=ON")
 fi
 
-# Build if missing or SHA drifted
+# Root runs this script; phase 2 chowns INSTALL_ROOT to SERVICE_USER, so
+# git refuses the tree with "fatal: detected dubious ownership". Scope
+# safe.directory to this repo for all subsequent git ops — no global
+# git config write.
+git_llama() {
+  git -c "safe.directory=${LLAMA_SRC_DIR}" -C "${LLAMA_SRC_DIR}" "$@"
+}
+
+# Build if missing or SHA drifted. Accept either the install symlink or
+# the cmake output path (operator may have built by hand mid-install).
 NEED_BUILD=y
-if [ -x "${INSTALL_ROOT}/llama-server" ] && [ -d "${LLAMA_SRC_DIR}/.git" ]; then
-  CURRENT_SHA=$(git -C "${LLAMA_SRC_DIR}" rev-parse --short HEAD 2>/dev/null || echo none)
+if { [ -x "${INSTALL_ROOT}/llama-server" ] \
+     || [ -x "${LLAMA_SRC_DIR}/build/bin/llama-server" ]; } \
+   && [ -d "${LLAMA_SRC_DIR}/.git" ]; then
+  CURRENT_SHA=$(git_llama rev-parse --short HEAD 2>/dev/null || echo none)
   if [ "${CURRENT_SHA}" = "${LLAMA_CPP_REF}" ]; then
     NEED_BUILD=n
     echo "  llama.cpp already built at ${LLAMA_CPP_REF}"
@@ -345,9 +356,10 @@ if [ "${NEED_BUILD}" = y ]; then
   if [ ! -d "${LLAMA_SRC_DIR}" ]; then
     git clone --depth=1 --branch "${LLAMA_CPP_REF}" \
         https://github.com/ggerganov/llama.cpp "${LLAMA_SRC_DIR}"
+    chown -R "${SERVICE_USER}:${SERVICE_USER}" "${LLAMA_SRC_DIR}"
   else
-    git -C "${LLAMA_SRC_DIR}" fetch --depth=1 origin "${LLAMA_CPP_REF}"
-    git -C "${LLAMA_SRC_DIR}" checkout FETCH_HEAD
+    git_llama fetch --depth=1 origin "${LLAMA_CPP_REF}"
+    git_llama checkout FETCH_HEAD
   fi
   patch_llama_gcc15
   cmake -S "${LLAMA_SRC_DIR}" -B "${LLAMA_SRC_DIR}/build" \

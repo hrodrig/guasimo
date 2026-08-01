@@ -29,6 +29,11 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
   pre-rebrand installs.
 
 ### Fixed
+- `deploy/install.sh`: git ops on `/opt/guasimo/llama.cpp` use
+  `safe.directory` so root is not blocked by "dubious ownership" after
+  phase 2 chowns the tree to the `guasimo` service user. Also treat
+  `build/bin/llama-server` as already-built (not only the install
+  symlink), so a hand-finished cmake build is not wiped on re-run.
 - `deploy/install.sh`: after cloning llama.cpp `b4568`, patch
   `src/llama-mmap.h` to `#include <cstdint>` when missing. GCC 15 on
   Ubuntu 26.04 no longer provides `uint32_t` via transitive headers;
