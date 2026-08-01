@@ -67,7 +67,8 @@ Open WebUI listens on loopback `:8080`; nginx terminates TLS on `:443`.
 
 ## Status
 
-**v0.2.1** — install + primary pull + healthcheck (8/0) + benchmark
+**v0.2.2** — install + primary pull + healthcheck (8/0) + benchmark
 (~18 gen tok/s) + LAN chat UI validated on Ubuntu 26.04 + RTX 3060
-(2026-07-31 / 2026-08-01). Design contract in `docs/`; roadmap in
+(2026-07-31 / 2026-08-01). Hermes Agent docs; optional `gemma` /
+`deepseek` pulls. Design contract in `docs/`; roadmap in
 `docs/09-roadmap.md`.

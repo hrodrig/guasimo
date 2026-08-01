@@ -10,6 +10,22 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
 ## [Unreleased]
 
 ### Added
+- (none yet)
+
+### Changed
+- (none yet)
+
+### Fixed
+- (none yet)
+
+### Removed
+- (none yet)
+
+## [0.2.2] - 2026-08-01
+
+Hermes Agent client docs + optional Gemma / DeepSeek pulls.
+
+### Added
 - Docs: Hermes Agent + LAN clients — SSH tunnel to
   `http://127.0.0.1:11434/v1`; 64K via `ollama_num_ctx` /
   `context_length`; disable thinking with `agent.reasoning_effort: none`
@@ -22,12 +38,6 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
 ### Changed
 - `scripts/pull-models.sh`: chown model dirs to `ollama` (not `guasimo`)
   so pulls do not re-break daemon writes.
-
-### Fixed
-- (none yet)
-
-### Removed
-- (none yet)
 
 ## [0.2.1] - 2026-08-01
 
@@ -142,7 +152,8 @@ Initial scaffolding. A new operator can read `SPECIFICATIONS.md` and
 - Firewall is **not** opened automatically. `scripts/open-firewall.sh`
   is the explicit, audited path.
 
-[Unreleased]: https://github.com/hrodrig/guasimo/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/hrodrig/guasimo/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/hrodrig/guasimo/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/hrodrig/guasimo/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/hrodrig/guasimo/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/hrodrig/guasimo/releases/tag/v0.1.0

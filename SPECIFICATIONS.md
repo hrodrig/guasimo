@@ -110,8 +110,9 @@ end-to-end runtime gate that runs against a live box.
 
 ## Status
 
-**v0.2.1** — install, primary pull, healthcheck (8/0), benchmark
+**v0.2.2** — install, primary pull, healthcheck (8/0), benchmark
 (~18 gen tok/s), and LAN chat UI (`https://192.168.10.69/`) validated
-on Ubuntu 26.04 + RTX 3060 (2026-07-31 / 2026-08-01). See
+on Ubuntu 26.04 + RTX 3060 (2026-07-31 / 2026-08-01). Hermes Agent
+client docs; optional `gemma` / `deepseek` model nicknames. See
 `docs/04-models.md`, `docs/06-networking-and-security.md`,
 `docs/09-roadmap.md`.

@@ -5,7 +5,7 @@
 Scaffolding and documentation. A new operator can read `docs/` and
 understand the system without running anything.
 
-## v0.2 — Minimum viable install (tagged `v0.2.0`, closed in `v0.2.1`)
+## v0.2 — Minimum viable install (tagged `v0.2.0`–`v0.2.2`)
 
 Deliverables:
 
