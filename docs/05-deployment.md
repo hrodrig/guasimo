@@ -83,10 +83,12 @@ Uses `apt-mark hold` only when we have a known-good pinned version.
   `deploy/install.sh`). CPU torch avoids pip pulling a second CUDA
   stack; inference stays on host Ollama/llama.cpp.
 - Drops the systemd unit from `deploy/systemd/open-webui.service`.
-- Drops the nginx vhost from `deploy/nginx/sites-available/guasimo.conf` and
-  symlinks it into `sites-enabled`.
-- Self-signed cert is generated for the LAN hostname in this phase (real
-  Let's Encrypt cert is an operator decision; see `docs/06-...md`).
+- Generates a self-signed TLS cert under `/etc/nginx/ssl/guasimo/`
+  **before** `nginx -t` (the vhost references those paths; testing
+  without them fails). Real Let's Encrypt is an operator decision; see
+  `docs/06-networking-and-security.md`.
+- Drops the nginx vhost from `deploy/nginx/sites-available/guasimo.conf`
+  and symlinks it into `sites-enabled`, then `nginx -t` + enable.
 
 ## Idempotency
 
@@ -145,23 +147,27 @@ repo on 26.04. If the box is already wedged, see
 
 ## Output of a successful install
 
+Shape (real run on Ubuntu 26.04 + RTX 3060, 2026-07-31):
+
 ```
-[phase 1/5] probe ............... ok (Ubuntu 26.04, i5-12400, no NVIDIA)
-[phase 2/5] packages ............ ok (120 packages, 0 new)
-[phase 3/5] llama.cpp ........... ok (built at sha abc123, AVX2, native)
-[phase 4/5] ollama .............. ok (Ollama 0.5.x, using local llama.cpp)
-[phase 5/5] webui + nginx ....... ok (Open WebUI 0.6.x, nginx 1.26)
+[phase 1/5] probe ............... NVIDIA hardware=y runtime=y
+[phase 2/5] packages ............ nvidia-driver-610 + toolkit already present
+[phase 3/5] llama.cpp ........... already built at b4568 (…); cuda build: y
+[phase 4/5] ollama .............. already installed
+[phase 5/5] open-webui + nginx .. uv → CPython 3.12 → open-webui; TLS; nginx -t ok
 
 URLs:
-  chat   https://<hostname>.local/
+  chat   https://<hostname>/      (accept self-signed cert)
   API    http://127.0.0.1:11434/v1/chat/completions
 
 Next steps:
+  ./scripts/healthcheck.sh
   ./scripts/pull-models.sh primary
   ./scripts/benchmark.sh primary
 ```
 
-The exact hostname and IP detection is left to the script.
+Chat URL is **HTTPS on nginx :443**, not bare `:8080` (Open WebUI binds
+loopback only). The exact hostname comes from `hostname -f`.
 
 ## Rollback
 

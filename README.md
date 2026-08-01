@@ -55,13 +55,19 @@ the others.
 
     git clone <this-repo> ~/guasimo
     cd ~/guasimo
+    # Ubuntu 26.04: add the NVIDIA CUDA apt repo first if nvidia-smi
+    # is missing — see docs/05-deployment.md (pre-flight).
     sudo ./deploy/install.sh          # detects GPU, builds llama.cpp, wires systemd
+    ./scripts/healthcheck.sh
     ./scripts/pull-models.sh primary  # ~10 GB primary code model
     ./scripts/benchmark.sh primary    # validates tokens/s on this box
 
-Open `http://localhost:8080` (or `https://<lan-ip>` after TLS).
+Open `https://localhost/` (self-signed cert — accept in the browser).
+Open WebUI listens on loopback `:8080`; nginx terminates TLS on `:443`.
 
 ## Status
 
-v0.1 — initial scaffolding. See `docs/01-architecture.md` for the design contract and
-`docs/09-roadmap.md` for what is planned next.
+Install path validated on real Ubuntu 26.04 + RTX 3060 hardware
+(2026-07-31): CUDA `llama.cpp`, Ollama, Open WebUI 0.6.x, nginx TLS.
+Next operator step after install: pull models + benchmark. Design
+contract in `docs/`; roadmap in `docs/09-roadmap.md`.

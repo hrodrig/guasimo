@@ -1,23 +1,26 @@
 # 09 — Roadmap
 
-## v0.1 (this commit)
+## v0.1
 
 Scaffolding and documentation. A new operator can read `docs/` and
 understand the system without running anything.
 
-## v0.2 — Minimum viable install
+## v0.2 — Minimum viable install (in progress)
 
 Deliverables:
 
-- `deploy/install.sh` that passes the Phase 1–5 contract from
-  `docs/05-deployment.md` on a clean Ubuntu 26.04 VM.
-- `scripts/pull-models.sh primary secondary` that actually downloads the
-  GGUF blobs.
-- `scripts/benchmark.sh primary` that prints tokens/s on the box.
-- `scripts/healthcheck.sh` that exits 0 on a working stack.
+- [x] `deploy/install.sh` phases 1–5 on real Ubuntu 26.04 + RTX 3060
+      (2026-07-31): CUDA `llama.cpp` (b4568 + GCC 15 patch), Ollama,
+      Open WebUI 0.6.x (Python 3.12 via uv), nginx TLS. Lessons from
+      that run live in `docs/08-troubleshooting.md`.
+- [ ] `scripts/pull-models.sh primary secondary` exercised end-to-end
+      on the validated box (downloads GGUF blobs).
+- [ ] `scripts/benchmark.sh primary` prints tokens/s on the box.
+- [ ] `scripts/healthcheck.sh` exits 0 on the working stack.
 
-Exit criterion: a fresh Ubuntu VM, single `install.sh`, 30 minutes later,
-the operator has a working chat UI on `https://<hostname>/`.
+Exit criterion: after `install.sh` + `pull-models.sh primary`, the
+operator has a working chat UI on `https://<hostname>/` answering
+with the primary model.
 
 ## v0.3 — Production polish
 
