@@ -38,6 +38,57 @@ Open WebUI with `qwen2.5-coder:14b-instruct-q4_K_M` selected.
 
 ![Open WebUI over LAN at 192.168.10.69](assets/open-webui-lan-192-168-10-69.png)
 
+## Clients on another LAN host (Hermes Agent, IDE plugins)
+
+Same subnet does **not** expose Ollama. The API stays on loopback of the
+guasimo box. From a Mac / laptop on the LAN:
+
+1. Forward the API (leave this session open):
+
+       ssh -N -L 11434:127.0.0.1:11434 <user>@<guasimo-lan-ip>
+
+2. Point the client at the tunnel, not at nginx and not at the LAN IP:
+
+   | Wrong                         | Right                              |
+   |-------------------------------|------------------------------------|
+   | `https://192.168.x.x/`        | Open WebUI only                    |
+   | `http://192.168.x.x:11434`    | refused (loopback-only)            |
+   | `http://127.0.0.1:1234/v1`    | LM Studio default, not guasimo     |
+   | `http://127.0.0.1:11434/v1`   | Ollama OpenAI-compat via tunnel    |
+
+3. Verify from the client machine:
+
+       curl -sS http://127.0.0.1:11434/v1/models
+
+### Hermes Agent (Nous Research)
+
+Hermes talks OpenAI-compat. Use a **custom** endpoint (not “Local :1234”):
+
+    hermes model
+    # Custom endpoint
+    # API base URL: http://127.0.0.1:11434/v1
+    # API key: ollama   (or blank)
+    # Model: qwen2.5-coder:14b-instruct-q4_K_M
+
+Or `~/.hermes/config.yaml`:
+
+```yaml
+model:
+  provider: custom
+  base_url: http://127.0.0.1:11434/v1
+  default: qwen2.5-coder:14b-instruct-q4_K_M
+  context_length: 64000
+```
+
+**Context floor:** Hermes Agent rejects models below **64 000** tokens of
+context. Qwen2.5-Coder-14B can do ≥64K; Ollama often *reports* 32K (or the
+Modelfile’s `num_ctx` 8192) until the server is told otherwise. Fix
+**without changing model** — raise context on both sides. See
+`docs/08-troubleshooting.md` → *Hermes Agent: context below 64K*.
+
+Upstream: [Hermes providers](https://hermes-agent.nousresearch.com/docs/integrations/providers),
+[Ollama ↔ Hermes](https://docs.ollama.com/integrations/hermes).
+
 ## TLS
 
 - `deploy/install.sh` generates a self-signed cert for the hostname at

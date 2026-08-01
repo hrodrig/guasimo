@@ -14,6 +14,8 @@ After install, day-to-day operation is one of:
 | Re-render the nginx config                | `sudo nginx -t && sudo systemctl reload nginx` |
 | Tail logs                                 | `journalctl -u ollama -u open-webui -f`  |
 | Health check                              | `./scripts/healthcheck.sh`               |
+| Wire Hermes / IDE from another LAN host   | SSH tunnel + `/v1` — see `docs/06-networking-and-security.md` |
+| Hermes "context below 64K" error          | Raise ctx without changing model — `docs/08-troubleshooting.md` |
 
 `guasimo.target` is a systemd target that orders the three services so
 nginx waits for Open WebUI, Open WebUI waits for Ollama, Ollama waits for

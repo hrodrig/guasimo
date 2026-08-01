@@ -372,6 +372,83 @@ install unversioned Ubuntu-archive NVIDIA packages (`nvidia-firmware`,
 - Is the LAN IP used instead? Ollama is loopback-only. The IDE plugin must
   run on the host or use SSH port forwarding:
   `ssh -L 11434:127.0.0.1:11434 user@host`.
+- Full LAN-client wiring (including Hermes Agent) is in
+  `docs/06-networking-and-security.md` → *Clients on another LAN host*.
+
+## Symptom: Hermes Agent — context window below 64 000
+
+Error looks like:
+
+    Failed to initialize agent: Model qwen2.5-coder:14b-instruct-q4_K_M
+    has a context window of 32,768 tokens, which is below the minimum
+    64,000 required by Hermes Agent.
+    … set model.context_length in config.yaml to the real value
+    (this must be at least 64K).
+
+You do **not** need a different model. Qwen2.5-Coder-14B supports ≥64K;
+Ollama is under-reporting / using a smaller effective `num_ctx`. Raise
+context on the **client** and on the **server**.
+
+### 1. Hermes (client) — force 64K
+
+Edit `~/.hermes/config.yaml` (or re-run `hermes model` and set context):
+
+```yaml
+model:
+  provider: custom
+  base_url: http://127.0.0.1:11434/v1
+  default: qwen2.5-coder:14b-instruct-q4_K_M
+  context_length: 64000
+```
+
+Hermes alone is not enough: Ollama must actually allocate that window.
+
+### 2. guasimo (server) — `OLLAMA_CONTEXT_LENGTH`
+
+On the guasimo box (as root):
+
+    sudo systemctl edit ollama
+
+Ensure the drop-in includes (keep existing `OLLAMA_*` lines):
+
+```ini
+[Service]
+Environment="OLLAMA_CONTEXT_LENGTH=64000"
+```
+
+Then:
+
+    sudo systemctl daemon-reload
+    sudo systemctl restart ollama
+
+Optional persistent per-model recipe (same idea as
+`config/ollama/Modelfile.coder-14b`, but with 64K):
+
+    printf '%s\n' \
+      'FROM qwen2.5-coder:14b-instruct-q4_K_M' \
+      'PARAMETER num_ctx 64000' \
+      > /tmp/Modelfile.hermes-64k
+    ollama create qwen2.5-coder-14b-hermes -f /tmp/Modelfile.hermes-64k
+
+Point Hermes `default:` at `qwen2.5-coder-14b-hermes` if you use this
+named model. The env var alone is usually enough for the stock pull tag.
+
+### 3. Confirm tunnel + reload Hermes
+
+From the client:
+
+    # tunnel must still be up
+    ssh -N -L 11434:127.0.0.1:11434 <user>@<guasimo-lan-ip>
+    curl -sS http://127.0.0.1:11434/v1/models
+    hermes   # restart the TUI so it re-reads config.yaml
+
+### Hardware note (RTX 3060 12 GB)
+
+64K KV cache on a 14B Q4 model is heavy. Expect slower tokens, possible
+CPU offload, or OOM. If the box dies under load: keep the same model but
+use Hermes for lighter tasks, or use Open WebUI / IDE clients at the
+default 8K `num_ctx` from `Modelfile.coder-14b` (those clients do not
+require Hermes’ 64K floor).
 
 ## Symptom: model answers look "stuck" or repeat
 
