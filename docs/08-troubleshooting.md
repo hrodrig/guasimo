@@ -250,6 +250,10 @@ broken". Reboot, then verify:
     nvidia-smi
     cd ~/guasimo && git pull && sudo ./deploy/install.sh
 
+Expected post-reboot `nvidia-smi` (real capture, prompt anonymized):
+
+![nvidia-smi after mixed-repo fix — RTX 3060, driver 610.43.02](assets/nvidia-smi-rtx3060-after-fix.png)
+
 `install.sh` automates the purge path inside `recover_dpkg` /
 `purge_unversioned_nvidia_conflict` when it detects this state.
 
