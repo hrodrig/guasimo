@@ -77,13 +77,14 @@ model:
   provider: custom
   base_url: http://127.0.0.1:11434/v1
   default: qwen2.5-coder:14b-instruct-q4_K_M
-  context_length: 64000
+  context_length: 65536
+  ollama_num_ctx: 65536   # required by Hermes v0.19+ for tool use
 ```
 
-**Context floor:** Hermes Agent rejects models below **64 000** tokens of
-context. Qwen2.5-Coder-14B can do ≥64K; Ollama often *reports* 32K (or the
-Modelfile’s `num_ctx` 8192) until the server is told otherwise. Fix
-**without changing model** — raise context on both sides. See
+**Context floor:** Hermes Agent rejects runtime context below **64 000**.
+GGUF metadata may still show 32 768 — ignore that for Hermes; set both
+`context_length` and `ollama_num_ctx` (and optionally
+`OLLAMA_CONTEXT_LENGTH` / a Modelfile `num_ctx`). Same model. Details:
 `docs/08-troubleshooting.md` → *Hermes Agent: context below 64K*.
 
 Upstream: [Hermes providers](https://hermes-agent.nousresearch.com/docs/integrations/providers),

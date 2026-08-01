@@ -377,61 +377,69 @@ install unversioned Ubuntu-archive NVIDIA packages (`nvidia-firmware`,
 
 ## Symptom: Hermes Agent — context window below 64 000
 
-Error looks like:
+Errors look like:
 
-    Failed to initialize agent: Model qwen2.5-coder:14b-instruct-q4_K_M
-    has a context window of 32,768 tokens, which is below the minimum
-    64,000 required by Hermes Agent.
-    … set model.context_length in config.yaml to the real value
-    (this must be at least 64K).
+    Failed to initialize agent: Model … has a context window of 32,768
+    tokens, which is below the minimum 64,000 required by Hermes Agent.
+
+    Ollama runtime context is too small for Hermes tool use
+    Current: 32768 · Required: >= 64000 (recommend 65536)
+    Fix: set model.ollama_num_ctx: 65536 in ~/.hermes/config.yaml
+         (and optionally model.context_length: 65536)
 
 You do **not** need a different model. Qwen2.5-Coder-14B supports ≥64K;
-Ollama is under-reporting / using a smaller effective `num_ctx`. Raise
-context on the **client** and on the **server**.
+Ollama’s GGUF metadata often reports **32768**, and the runtime
+`num_ctx` stays at that until Hermes (or a Modelfile) raises it.
 
-### 1. Hermes (client) — force 64K
+`OLLAMA_CONTEXT_LENGTH` on the server helps new loads, but Hermes v0.19+
+also requires an explicit **`ollama_num_ctx`** so each request asks Ollama
+for 64K+. `/api/show` → `qwen2.context_length: 32768` is normal metadata;
+it does not mean the override failed.
 
-Edit `~/.hermes/config.yaml` (or re-run `hermes model` and set context):
+### 1. Hermes (client) — both knobs
+
+Edit `~/.hermes/config.yaml`:
 
 ```yaml
 model:
   provider: custom
   base_url: http://127.0.0.1:11434/v1
   default: qwen2.5-coder:14b-instruct-q4_K_M
-  context_length: 64000
+  context_length: 65536
+  ollama_num_ctx: 65536
 ```
 
-Hermes alone is not enough: Ollama must actually allocate that window.
+- `context_length` — Hermes’ own budget / display (must be ≥ 64000).
+- `ollama_num_ctx` — what Hermes sends to Ollama as runtime context
+  (this is what clears *“Ollama runtime context is too small”*).
 
-### 2. guasimo (server) — `OLLAMA_CONTEXT_LENGTH`
+Restart the TUI after saving (`hermes`).
 
-On the guasimo box (as root):
+### 2. guasimo (server) — still set the env + optional Modelfile
+
+On the guasimo box:
 
     sudo systemctl edit ollama
 
-Ensure the drop-in includes (keep existing `OLLAMA_*` lines):
-
 ```ini
 [Service]
-Environment="OLLAMA_CONTEXT_LENGTH=64000"
+Environment="OLLAMA_CONTEXT_LENGTH=65536"
 ```
-
-Then:
 
     sudo systemctl daemon-reload
     sudo systemctl restart ollama
 
-Optional persistent per-model recipe (same idea as
-`config/ollama/Modelfile.coder-14b`, but with 64K):
+Optional named model (persistent `num_ctx`, same base weights — no
+re-download):
 
     printf '%s\n' \
       'FROM qwen2.5-coder:14b-instruct-q4_K_M' \
-      'PARAMETER num_ctx 64000' \
+      'PARAMETER num_ctx 65536' \
       > /tmp/Modelfile.hermes-64k
     ollama create qwen2.5-coder-14b-hermes -f /tmp/Modelfile.hermes-64k
 
-Point Hermes `default:` at `qwen2.5-coder-14b-hermes` if you use this
-named model. The env var alone is usually enough for the stock pull tag.
+Then set Hermes `default: qwen2.5-coder-14b-hermes`. Useful if
+`ollama_num_ctx` alone is ignored by an older Hermes build.
 
 ### 3. Confirm tunnel + reload Hermes
 
@@ -440,15 +448,15 @@ From the client:
     # tunnel must still be up
     ssh -N -L 11434:127.0.0.1:11434 <user>@<guasimo-lan-ip>
     curl -sS http://127.0.0.1:11434/v1/models
-    hermes   # restart the TUI so it re-reads config.yaml
+    hermes
 
 ### Hardware note (RTX 3060 12 GB)
 
-64K KV cache on a 14B Q4 model is heavy. Expect slower tokens, possible
-CPU offload, or OOM. If the box dies under load: keep the same model but
-use Hermes for lighter tasks, or use Open WebUI / IDE clients at the
-default 8K `num_ctx` from `Modelfile.coder-14b` (those clients do not
-require Hermes’ 64K floor).
+64K / 65 536 KV cache on a 14B Q4 model is heavy. Expect slower tokens,
+possible CPU offload, or OOM. If the box dies under load: keep the same
+model but use Hermes for lighter tasks, or use Open WebUI / IDE clients
+at the default 8K `num_ctx` from `Modelfile.coder-14b` (those clients do
+not require Hermes’ 64K floor).
 
 ## Symptom: model answers look "stuck" or repeat
 

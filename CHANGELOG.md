@@ -12,9 +12,9 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
 ### Added
 - Docs: Hermes Agent + LAN clients — SSH tunnel to
   `http://127.0.0.1:11434/v1`, and how to clear Hermes’ **64K context**
-  floor without changing model (`OLLAMA_CONTEXT_LENGTH=64000` +
-  `model.context_length` in `~/.hermes/config.yaml`). See
-  `docs/06-networking-and-security.md`, `docs/08-troubleshooting.md`.
+  floor without changing model (`model.ollama_num_ctx: 65536` +
+  `context_length: 65536`, plus `OLLAMA_CONTEXT_LENGTH` / Modelfile).
+  See `docs/06-networking-and-security.md`, `docs/08-troubleshooting.md`.
 
 ### Changed
 - (none yet)
