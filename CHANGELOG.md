@@ -22,7 +22,11 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
   NVIDIA packages on the same box.
 
 ### Changed
-- (none yet)
+- Runtime paths and service identity renamed from `ia-lab` to `guasimo`:
+  `/opt/guasimo`, user `guasimo`, `/var/log/guasimo`, systemd
+  `guasimo.target`, nginx `guasimo.conf`, health `GET /guasimo-health`.
+  `uninstall.sh` also removes leftover `/opt/ia-lab` artefacts from
+  pre-rebrand installs.
 
 ### Fixed
 - `deploy/install.sh`: stopped pinning `nvidia-driver-555`. The package
@@ -106,7 +110,7 @@ Initial scaffolding. A new operator can read `SPECIFICATIONS.md` and
 ### Security
 - All inference services bind to `127.0.0.1`. Only nginx listens on the
   LAN (`443/tcp`, `80/tcp` only as a 301 redirect).
-- Open WebUI service runs as the unprivileged `ia-lab` user with
+- Open WebUI service runs as the unprivileged `guasimo` user with
   systemd hardening (`NoNewPrivileges`, `ProtectSystem=strict`,
   `PrivateTmp`, `ProtectHome`, etc.).
 - Firewall is **not** opened automatically. `scripts/open-firewall.sh`

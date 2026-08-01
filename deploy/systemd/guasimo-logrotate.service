@@ -1,0 +1,7 @@
+[Unit]
+Description=Rotate guasimo logs
+
+[Service]
+Type=oneshot
+ExecStart=/opt/guasimo/scripts/rotate-logs.sh
+Nice=10

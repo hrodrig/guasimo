@@ -24,6 +24,6 @@ files here are the contract that surface must honour.
 ## Conventions used in this repo
 
 - All commands assume the repository root unless prefixed with `cd ...`.
-- All paths inside shell snippets are relative to `$REPO` = `~/ia-lab-home`.
+- All paths inside shell snippets are relative to `$REPO` = `~/guasimo`.
 - Versions are pinned in `deploy/install.sh`. Bumping them is a deliberate act.
 - Anything that creates a file on disk must be idempotent on second run.

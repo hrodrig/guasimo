@@ -6,8 +6,8 @@ After install, day-to-day operation is one of:
 
 | Want to...                                | Run                                      |
 |-------------------------------------------|------------------------------------------|
-| Start the stack after a reboot           | `sudo systemctl start ia-lab.target`     |
-| Stop the stack                            | `sudo systemctl stop ia-lab.target`      |
+| Start the stack after a reboot           | `sudo systemctl start guasimo.target`     |
+| Stop the stack                            | `sudo systemctl stop guasimo.target`      |
 | See status of all three services          | `systemctl status 'ollama\|llama-cpp\|open-webui'` |
 | Pull a new model                          | `./scripts/pull-models.sh <name>`        |
 | Drop a model                              | `ollama rm <name>`                       |
@@ -15,7 +15,7 @@ After install, day-to-day operation is one of:
 | Tail logs                                 | `journalctl -u ollama -u open-webui -f`  |
 | Health check                              | `./scripts/healthcheck.sh`               |
 
-`ia-lab.target` is a systemd target that orders the three services so
+`guasimo.target` is a systemd target that orders the three services so
 nginx waits for Open WebUI, Open WebUI waits for Ollama, Ollama waits for
 nothing (it manages its own llama.cpp child). The target is the single
 thing an operator needs to learn.
@@ -39,7 +39,7 @@ thing an operator needs to learn.
 ### Upgrading Open WebUI
 
 - Edit the version in `requirements.txt`.
-- `sudo -u ia-lab /opt/ia-lab/webui-venv/bin/pip install -U -r requirements.txt`.
+- `sudo -u guasimo /opt/guasimo/webui-venv/bin/pip install -U -r requirements.txt`.
 - `sudo systemctl restart open-webui`.
 
 ### Upgrading the box
@@ -54,16 +54,16 @@ thing an operator needs to learn.
 - `config/`, `deploy/`, `docs/` are in git. Backed up by virtue of being
   in git.
 - `models/` is **not** in git. Recovery = re-pull.
-- `/var/log/ia-lab/` is rotated weekly; not backed up.
+- `/var/log/guasimo/` is rotated weekly; not backed up.
 - Open WebUI's SQLite DB lives at `/data/open-webui/webui.db`. Back this up
   with `scripts/backup-webui-db.sh` weekly if conversation history matters.
 
 ## Log rotation
 
 - `scripts/rotate-logs.sh` is the canonical log rotator.
-- Compresses `/var/log/ia-lab/*.log` older than 7 days, deletes older than
+- Compresses `/var/log/guasimo/*.log` older than 7 days, deletes older than
   90 days.
-- Triggered via a systemd timer (`ia-lab-logrotate.timer`), weekly.
+- Triggered via a systemd timer (`guasimo-logrotate.timer`), weekly.
 
 ## Model rotation
 

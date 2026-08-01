@@ -15,14 +15,14 @@ OPEN_WEBUI_VERSION="${OPEN_WEBUI_VERSION:-0.3.21}"   # open-webui python pkg
 REQUIRED_UBUNTU_MAJOR=26
 
 # Repo location after install
-INSTALL_ROOT="/opt/ia-lab"
+INSTALL_ROOT="/opt/guasimo"
 LLAMA_SRC_DIR="${INSTALL_ROOT}/llama.cpp"
 
 # Service user
-SERVICE_USER="ia-lab"
+SERVICE_USER="guasimo"
 
 # Logging
-LOG_DIR="/var/log/ia-lab"
+LOG_DIR="/var/log/guasimo"
 mkdir -p "${LOG_DIR}"
 INSTALL_LOG="${LOG_DIR}/install.log"
 exec > >(tee -a "${INSTALL_LOG}") 2>&1
@@ -262,7 +262,7 @@ fi
 # Service user (idempotent)
 if ! id -u "${SERVICE_USER}" >/dev/null 2>&1; then
   useradd --system --shell /usr/sbin/nologin --home-dir "${INSTALL_ROOT}" \
-          --comment "ia-lab services" "${SERVICE_USER}"
+          --comment "guasimo services" "${SERVICE_USER}"
 fi
 
 mkdir -p "${INSTALL_ROOT}" "${LOG_DIR}" "${DATA_DISK}/models" \
@@ -386,21 +386,33 @@ fi
 "${WEBUI_VENV}/bin/pip" install \
   "open-webui==${OPEN_WEBUI_VERSION}" "httpx" "uvicorn"
 
-cp deploy/systemd/open-webui.service /etc/systemd/system/open-webui.service
-cp deploy/systemd/ia-lab.target       /etc/systemd/system/ia-lab.target
-systemctl daemon-reload
-systemctl enable --now open-webui.service ia-lab.target
+# Install ops scripts under INSTALL_ROOT (logrotate timer, etc.).
+mkdir -p "${INSTALL_ROOT}/scripts"
+cp scripts/rotate-logs.sh "${INSTALL_ROOT}/scripts/rotate-logs.sh"
+chmod 755 "${INSTALL_ROOT}/scripts/rotate-logs.sh"
 
-# nginx
-cp deploy/nginx/sites-available/ia-lab.conf /etc/nginx/sites-available/ia-lab.conf
-ln -sf /etc/nginx/sites-available/ia-lab.conf /etc/nginx/sites-enabled/ia-lab.conf
+cp deploy/systemd/open-webui.service /etc/systemd/system/open-webui.service
+cp deploy/systemd/guasimo.target       /etc/systemd/system/guasimo.target
+cp deploy/systemd/guasimo-logrotate.service \
+   /etc/systemd/system/guasimo-logrotate.service
+cp deploy/systemd/guasimo-logrotate.timer \
+   /etc/systemd/system/guasimo-logrotate.timer
+systemctl daemon-reload
+systemctl enable --now open-webui.service guasimo.target
+systemctl enable --now guasimo-logrotate.timer
+
+# nginx — drop legacy ia-lab vhost if present from a pre-rebrand install
+rm -f /etc/nginx/sites-enabled/ia-lab.conf \
+      /etc/nginx/sites-available/ia-lab.conf
+cp deploy/nginx/sites-available/guasimo.conf /etc/nginx/sites-available/guasimo.conf
+ln -sf /etc/nginx/sites-available/guasimo.conf /etc/nginx/sites-enabled/guasimo.conf
 rm -f /etc/nginx/sites-enabled/default
 nginx -t
 systemctl enable --now nginx
 
 # Self-signed cert for first run
 HOSTNAME_FQDN=$(hostname -f 2>/dev/null || hostname)
-CERT_DIR="/etc/nginx/ssl/ia-lab"
+CERT_DIR="/etc/nginx/ssl/guasimo"
 mkdir -p "${CERT_DIR}"
 if [ ! -f "${CERT_DIR}/fullchain.pem" ]; then
   openssl req -x509 -nodes -newkey rsa:2048 -days 365 \

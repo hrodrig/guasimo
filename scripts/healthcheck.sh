@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/healthcheck.sh — table-form health report for the ia-lab stack.
+# scripts/healthcheck.sh — table-form health report for the guasimo stack.
 #
 # Designed for cron / status pages. Exits 0 if all checks pass, 1 otherwise.
 # The check definitions mirror docs/07-operations.md.
@@ -59,7 +59,7 @@ else
 fi
 
 # --- llama-server binary present --------------------------------------------
-if [ -x /opt/ia-lab/llama-server ]; then
+if [ -x /opt/guasimo/llama-server ]; then
   RESULTS+=("ok  | llama-server present and executable"); PASS=$((PASS + 1))
 else
   RESULTS+=("FAIL| llama-server missing or not executable"); FAIL=$((FAIL + 1))

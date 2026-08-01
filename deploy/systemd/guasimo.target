@@ -1,5 +1,5 @@
 [Unit]
-Description=ia-lab target (orders the LLM stack)
+Description=guasimo target (orders the LLM stack)
 Wants=ollama.service open-webui.service nginx.service
 After=ollama.service open-webui.service nginx.service
 

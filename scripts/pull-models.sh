@@ -16,9 +16,9 @@ set -euo pipefail
 
 DATA_DIR="/data/models"
 BULK_DIR="/bulk/models"
-LOG_DIR="/var/log/ia-lab"
+LOG_DIR="/var/log/guasimo"
 mkdir -p "${DATA_DIR}" "${BULK_DIR}" "${LOG_DIR}"
-chown -R ia-lab:ia-lab "${DATA_DIR}" "${BULK_DIR}" 2>/dev/null || true
+chown -R guasimo:guasimo "${DATA_DIR}" "${BULK_DIR}" 2>/dev/null || true
 
 WHAT="${1:-primary}"
 
@@ -65,9 +65,9 @@ if [ "${FREE_GB}" -lt $((EST_GB + 5)) ]; then
   exit 3
 fi
 
-# Pull, as ia-lab user (Ollama writes into OLLAMA_MODELS=/data/models).
+# Pull, as guasimo user (Ollama writes into OLLAMA_MODELS=/data/models).
 run_ollama() {
-  sudo -u ia-lab -H ollama "$@"
+  sudo -u guasimo -H ollama "$@"
 }
 
 for t in "${TARGETS[@]}"; do

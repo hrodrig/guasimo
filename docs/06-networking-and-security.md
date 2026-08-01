@@ -63,9 +63,9 @@ We do not silently enable a firewall.
 
 ## Sandbox / privilege
 
-- The three services run as a dedicated unprivileged user `ia-lab` created
+- The three services run as a dedicated unprivileged user `guasimo` created
   by `install.sh`, not as root.
-- `ia-lab` has write access to `/data/models`, `/bulk/models`, `/var/log/ia-lab`.
+- `guasimo` has write access to `/data/models`, `/bulk/models`, `/var/log/guasimo`.
 - No service gets sudo. No service has CAP_NET_BIND_SERVICE except nginx
   (which already binds 443 as a systemd-managed process).
 
@@ -79,7 +79,7 @@ We do not silently enable a firewall.
 ## Logging hygiene
 
 - Inference logs (prompts, completions) are written to
-  `/var/log/ia-lab/` with mode `0640`, owner `ia-lab:adm`.
+  `/var/log/guasimo/` with mode `0640`, owner `guasimo:adm`.
 - Log rotation is handled by `scripts/rotate-logs.sh` (cron'd weekly). We
   do not use `logrotate` for these files because the format is not
   syslog-native and we'd rather have one tool to look at.

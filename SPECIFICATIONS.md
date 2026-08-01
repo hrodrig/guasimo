@@ -58,7 +58,7 @@ performance.
 - The stack is reachable at `https://<hostname>/` after install; the
   OpenAI-compatible API is at `http://127.0.0.1:11434/v1/`.
 - After a reboot, no operator action is needed for the stack to come
-  back. `systemctl status ia-lab.target` should report `active`.
+  back. `systemctl status guasimo.target` should report `active`.
 
 ## Model contract
 

@@ -27,7 +27,7 @@ if [[ "${CIDR}" =~ ^0\.0\.0\.0/0$ ]]; then
   exit 4
 fi
 
-RULE="ufw allow from ${CIDR} to any port 443 proto tcp comment 'ia-lab HTTPS'"
+RULE="ufw allow from ${CIDR} to any port 443 proto tcp comment 'guasimo HTTPS'"
 
 cat <<EOF
 about to run:

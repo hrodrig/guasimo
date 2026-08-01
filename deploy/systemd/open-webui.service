@@ -1,20 +1,20 @@
 [Unit]
-Description=Open WebUI (ia-lab)
+Description=Open WebUI (guasimo)
 After=ollama.service
 Wants=ollama.service
 
 [Service]
 Type=simple
-User=ia-lab
-Group=ia-lab
-WorkingDirectory=/opt/ia-lab
+User=guasimo
+Group=guasimo
+WorkingDirectory=/opt/guasimo
 Environment="DATA_DIR=/data/open-webui"
 Environment="WEBUI_AUTH=false"
 Environment="OPENAI_API_BASE_URL=http://127.0.0.1:11434/v1"
 Environment="OLLAMA_BASE_URL=http://127.0.0.1:11434"
 Environment="PORT=8080"
 Environment="HOST=127.0.0.1"
-ExecStart=/opt/ia-lab/webui-venv/bin/open-webui serve
+ExecStart=/opt/guasimo/webui-venv/bin/open-webui serve
 Restart=on-failure
 RestartSec=3
 
@@ -23,7 +23,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/data /var/log/ia-lab /opt/ia-lab
+ReadWritePaths=/data /var/log/guasimo /opt/guasimo
 ProtectKernelTunables=true
 ProtectControlGroups=true
 RestrictSUIDSGID=true

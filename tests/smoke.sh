@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/smoke.sh — end-to-end smoke test for the ia-lab stack.
+# tests/smoke.sh — end-to-end smoke test for the guasimo stack.
 #
 # Verifies, in order, that:
 #   1. nginx accepts HTTPS connections.
@@ -67,7 +67,7 @@ if [ -n "${MODEL}" ]; then
 fi
 
 # 5. llama-server binary
-if [ -x /opt/ia-lab/llama-server ]; then
+if [ -x /opt/guasimo/llama-server ]; then
   ok "llama-server present and executable"
 else
   bad "llama-server missing or not executable"

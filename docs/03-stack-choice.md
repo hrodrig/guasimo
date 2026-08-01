@@ -32,7 +32,7 @@ The differences are operational, not functional.
   This is what makes "add a new model" a single file + a pull command.
 - Active project, fast release cadence, broadly supported by IDE plugins.
 - Optional: in v1 we point Ollama at our locally-built llama.cpp binary
-  (`OLLAMA_LLAMA_SERVER=/opt/ia-lab/llama-server`) so we get one build,
+  (`OLLAMA_LLAMA_SERVER=/opt/guasimo/llama-server`) so we get one build,
   not two.
 
 ### Open WebUI
@@ -82,7 +82,7 @@ Open WebUI costs one extra systemd unit and gets us the chat UX we want.
 Ollama normally bundles its own llama.cpp. We override this so the whole
 stack uses the single binary we built in `deploy/install.sh`:
 
-    Environment="OLLAMA_LLAMA_SERVER=/opt/ia-lab/llama-server"
+    Environment="OLLAMA_LLAMA_SERVER=/opt/guasimo/llama-server"
 
 This means: one CPU-tuned build, no second inference engine to keep in
 sync, and the model behaviour is uniform between direct llama.cpp calls and

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# scripts/rotate-logs.sh — compress and expire ia-lab logs.
+# scripts/rotate-logs.sh — compress and expire guasimo logs.
 #
-# Wired to ia-lab-logrotate.timer (weekly). Operates on /var/log/ia-lab.
+# Wired to guasimo-logrotate.timer (weekly). Operates on /var/log/guasimo.
 # Keeps 7 days uncompressed, 90 days total.
 
 set -euo pipefail
 
-LOG_DIR="/var/log/ia-lab"
+LOG_DIR="/var/log/guasimo"
 KEEP_RAW_DAYS=7
 KEEP_COMPRESSED_DAYS=90
 

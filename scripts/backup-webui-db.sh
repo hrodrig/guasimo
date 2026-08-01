@@ -21,8 +21,8 @@ mkdir -p "${DEST_DIR}"
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 DEST="${DEST_DIR}/webui-${STAMP}.db"
 
-# Use the dedicated "ia-lab" service user to read; the file is owned by it.
-sudo -u ia-lab sqlite3 "${SRC}" ".backup '${DEST}'"
+# Use the dedicated "guasimo" service user to read; the file is owned by it.
+sudo -u guasimo sqlite3 "${SRC}" ".backup '${DEST}'"
 
 gzip -9 "${DEST}"
 echo "wrote ${DEST}.gz"

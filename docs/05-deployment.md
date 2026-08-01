@@ -57,12 +57,12 @@ Uses `apt-mark hold` only when we have a known-good pinned version.
 
 ### Phase 3 — llama.cpp
 
-- Clones https://github.com/ggerganov/llama.cpp into `/opt/ia-lab/llama.cpp/`
+- Clones https://github.com/ggerganov/llama.cpp into `/opt/guasimo/llama.cpp/`
   at the SHA pinned in `deploy/install.sh`.
 - Configures with the flag matrix from `docs/02-hardware-decisions.md`.
 - Builds with `cmake --build build --parallel`.
 - Strips the binary.
-- Symlinks `/opt/ia-lab/llama-server` and `/opt/ia-lab/llama-cli`.
+- Symlinks `/opt/guasimo/llama-server` and `/opt/guasimo/llama-cli`.
 - Skips clone if the directory exists and matches the pinned SHA.
 
 ### Phase 4 — Ollama
@@ -75,10 +75,10 @@ Uses `apt-mark hold` only when we have a known-good pinned version.
 
 ### Phase 5 — Open WebUI + nginx
 
-- Creates Python venv at `/opt/ia-lab/webui-venv`.
+- Creates Python venv at `/opt/guasimo/webui-venv`.
 - `pip install open-webui` pinned to `requirements.txt`.
 - Drops the systemd unit from `deploy/systemd/open-webui.service`.
-- Drops the nginx vhost from `deploy/nginx/sites-available/ia-lab.conf` and
+- Drops the nginx vhost from `deploy/nginx/sites-available/guasimo.conf` and
   symlinks it into `sites-enabled`.
 - Self-signed cert is generated for the LAN hostname in this phase (real
   Let's Encrypt cert is an operator decision; see `docs/06-...md`).

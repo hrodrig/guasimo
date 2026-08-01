@@ -22,10 +22,10 @@ Ollama is not running.
 
 Common causes:
 
-- First boot, `ia-lab.target` not enabled: `sudo systemctl enable --now ia-lab.target`.
+- First boot, `guasimo.target` not enabled: `sudo systemctl enable --now guasimo.target`.
 - `OLLAMA_LLAMA_SERVER` override points at a missing binary. Check
   `/etc/systemd/system/ollama.service.d/override.conf`. The path should
-  exist and be executable by the `ia-lab` user.
+  exist and be executable by the `guasimo` user.
 - Port collision: `ss -ltnp 'sport = :11434'`.
 
 ## Symptom: Ollama running, model not loaded
@@ -69,7 +69,7 @@ Open WebUI crashed or is still starting.
     sudo journalctl -u open-webui -n 50 --no-pager
 
 If the venv is broken (e.g. after a Python upgrade), re-run
-`/opt/ia-lab/webui-venv/bin/pip install -U -r requirements.txt`.
+`/opt/guasimo/webui-venv/bin/pip install -U -r requirements.txt`.
 
 ## Symptom: TLS errors in browser
 
@@ -292,6 +292,6 @@ in `/bulk/models/`.
 
     sudo systemctl reset-failed
     sudo systemctl daemon-reload
-    sudo systemctl start ia-lab.target
+    sudo systemctl start guasimo.target
 
 Then look at the actual error in `journalctl -xe`.
