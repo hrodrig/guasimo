@@ -16,7 +16,9 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
 - (none yet)
 
 ### Fixed
-- (none yet)
+- `deploy/install.sh`: chown `/data/models` to the Ollama service user
+  (`ollama`), not `guasimo`. Prevents crash-loop
+  `mkdir /data/models/blobs: permission denied` after reboot / power loss.
 
 ### Removed
 - (none yet)

@@ -24,9 +24,25 @@ Common causes:
 
 - First boot, `guasimo.target` not enabled: `sudo systemctl enable --now guasimo.target`.
 - `OLLAMA_LLAMA_SERVER` override points at a missing binary. Check
-  `/etc/systemd/system/ollama.service.d/override.conf`. The path should
-  exist and be executable by the `guasimo` user.
+  `/etc/systemd/system/ollama.service.d/override.conf`.
 - Port collision: `ss -ltnp 'sport = :11434'`.
+
+## Symptom: `mkdir /data/models/blobs: permission denied`
+
+Ollama's systemd unit runs as user `ollama`. `/data/models` must be
+owned by that user (not `guasimo`). Typical after a bad chown or a
+power-loss recovery where paths were recreated as the wrong owner:
+
+    sudo mkdir -p /data/models /bulk/models
+    sudo chown -R ollama:ollama /data/models /bulk/models
+    sudo chmod 755 /data /bulk /data/models /bulk/models
+    sudo systemctl reset-failed ollama
+    sudo systemctl restart ollama
+    systemctl is-active ollama
+
+Then resume the pull (Ollama resumes incomplete blobs when possible):
+
+    ./scripts/pull-models.sh primary
 
 ## Symptom: Ollama running, model not loaded
 

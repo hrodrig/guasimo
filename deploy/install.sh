@@ -270,8 +270,13 @@ fi
 
 mkdir -p "${INSTALL_ROOT}" "${LOG_DIR}" "${DATA_DISK}/models" \
          "${BULK_DISK}/models" "${DATA_DISK}/open-webui"
+# Parents must stay world-traversable (o+x). Do NOT chown all of /data to
+# guasimo — the Ollama daemon runs as user `ollama` and needs to own
+# OLLAMA_MODELS (/data/models). WebUI data stays with SERVICE_USER.
+chmod 755 "${DATA_DISK}" "${BULK_DISK}" "${DATA_DISK}/models" \
+          "${BULK_DISK}/models" 2>/dev/null || true
 chown -R "${SERVICE_USER}:${SERVICE_USER}" "${INSTALL_ROOT}" "${LOG_DIR}" \
-         "${DATA_DISK}" "${BULK_DISK}"
+         "${DATA_DISK}/open-webui"
 
 # ---------------------------------------------------------------------------
 # Phase 3 — llama.cpp
@@ -419,6 +424,17 @@ Environment="OLLAMA_HOST=127.0.0.1:11434"
 Environment="OLLAMA_MODELS=${DATA_DISK}/models"
 Environment="OLLAMA_DEBUG=false"
 EOF
+
+# Ollama's unit runs as User=ollama (upstream default). Give that user
+# ownership of the models dir or serve dies with:
+#   mkdir /data/models/blobs: permission denied
+OLLAMA_USER=$(systemctl show -p User --value ollama.service 2>/dev/null || true)
+OLLAMA_USER="${OLLAMA_USER:-ollama}"
+if id -u "${OLLAMA_USER}" >/dev/null 2>&1; then
+  echo "  chown ${DATA_DISK}/models → ${OLLAMA_USER}:${OLLAMA_USER}"
+  chown -R "${OLLAMA_USER}:${OLLAMA_USER}" \
+    "${DATA_DISK}/models" "${BULK_DISK}/models"
+fi
 
 systemctl daemon-reload
 systemctl enable --now ollama
