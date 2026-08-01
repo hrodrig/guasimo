@@ -458,6 +458,45 @@ model but use Hermes for lighter tasks, or use Open WebUI / IDE clients
 at the default 8K `num_ctx` from `Modelfile.coder-14b` (those clients do
 not require Hermes’ 64K floor).
 
+## Symptom: Hermes Agent — `does not support thinking` (HTTP 400)
+
+Error looks like:
+
+    BadRequestError [HTTP 400]: "qwen2.5-coder:14b-instruct-q4_K_M"
+    does not support thinking
+
+Context is fine; Hermes is sending a **reasoning / think** flag that
+plain instruct models (including guasimo’s primary coder) reject. Same
+model — disable thinking on the Hermes side.
+
+In `~/.hermes/config.yaml` under `agent:`:
+
+```yaml
+agent:
+  max_turns: 150
+  gateway_timeout: 1800
+  reasoning_effort: none
+```
+
+Restart Hermes. That maps to Ollama `think: false` /
+`reasoning_effort: none` so `/v1/chat/completions` stops asking for
+thinking.
+
+If an older Hermes build still forwards a non-empty effort and 400s
+persist, try clearing it:
+
+```yaml
+agent:
+  reasoning_effort: ""
+```
+
+Do **not** switch to a “thinking” model (DeepSeek-R1, Qwen3-thinking,
+etc.) just to silence this — the coding stack is meant to stay on
+Qwen2.5-Coder instruct.
+
+Upstream context: Hermes issues around Ollama + `reasoning_effort` /
+non-reasoning models (e.g. NousResearch/hermes-agent#59660).
+
 ## Symptom: model answers look "stuck" or repeat
 
 - Lower the temperature in the request.

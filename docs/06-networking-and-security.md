@@ -79,6 +79,8 @@ model:
   default: qwen2.5-coder:14b-instruct-q4_K_M
   context_length: 65536
   ollama_num_ctx: 65536   # required by Hermes v0.19+ for tool use
+agent:
+  reasoning_effort: none  # coder instruct ≠ thinking model
 ```
 
 **Context floor:** Hermes Agent rejects runtime context below **64 000**.
@@ -86,6 +88,10 @@ GGUF metadata may still show 32 768 — ignore that for Hermes; set both
 `context_length` and `ollama_num_ctx` (and optionally
 `OLLAMA_CONTEXT_LENGTH` / a Modelfile `num_ctx`). Same model. Details:
 `docs/08-troubleshooting.md` → *Hermes Agent: context below 64K*.
+
+**Thinking / HTTP 400:** if Ollama returns
+`does not support thinking`, keep the same model and set
+`agent.reasoning_effort: none` (see troubleshooting).
 
 Upstream: [Hermes providers](https://hermes-agent.nousresearch.com/docs/integrations/providers),
 [Ollama ↔ Hermes](https://docs.ollama.com/integrations/hermes).

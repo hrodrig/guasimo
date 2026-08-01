@@ -11,10 +11,10 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
 
 ### Added
 - Docs: Hermes Agent + LAN clients — SSH tunnel to
-  `http://127.0.0.1:11434/v1`, and how to clear Hermes’ **64K context**
-  floor without changing model (`model.ollama_num_ctx: 65536` +
-  `context_length: 65536`, plus `OLLAMA_CONTEXT_LENGTH` / Modelfile).
-  See `docs/06-networking-and-security.md`, `docs/08-troubleshooting.md`.
+  `http://127.0.0.1:11434/v1`; 64K via `ollama_num_ctx` /
+  `context_length`; disable thinking with `agent.reasoning_effort: none`
+  for Qwen2.5-Coder (HTTP 400 *does not support thinking*). See
+  `docs/06-networking-and-security.md`, `docs/08-troubleshooting.md`.
 
 ### Changed
 - (none yet)
