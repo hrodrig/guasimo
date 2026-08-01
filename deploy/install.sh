@@ -515,6 +515,20 @@ systemctl daemon-reload
 systemctl enable --now open-webui.service guasimo.target
 systemctl enable --now guasimo-logrotate.timer
 
+# Self-signed cert BEFORE nginx -t — the vhost references these paths
+# and `nginx -t` fails hard if they are missing on first install.
+HOSTNAME_FQDN=$(hostname -f 2>/dev/null || hostname)
+CERT_DIR="/etc/nginx/ssl/guasimo"
+mkdir -p "${CERT_DIR}"
+if [ ! -f "${CERT_DIR}/fullchain.pem" ]; then
+  echo "  generating self-signed TLS cert for ${HOSTNAME_FQDN}"
+  openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
+    -subj "/CN=${HOSTNAME_FQDN}" \
+    -keyout "${CERT_DIR}/privkey.pem" \
+    -out    "${CERT_DIR}/fullchain.pem" >/dev/null
+  chmod 600 "${CERT_DIR}/privkey.pem"
+fi
+
 # nginx — drop legacy ia-lab vhost if present from a pre-rebrand install
 rm -f /etc/nginx/sites-enabled/ia-lab.conf \
       /etc/nginx/sites-available/ia-lab.conf
@@ -523,19 +537,6 @@ ln -sf /etc/nginx/sites-available/guasimo.conf /etc/nginx/sites-enabled/guasimo.
 rm -f /etc/nginx/sites-enabled/default
 nginx -t
 systemctl enable --now nginx
-
-# Self-signed cert for first run
-HOSTNAME_FQDN=$(hostname -f 2>/dev/null || hostname)
-CERT_DIR="/etc/nginx/ssl/guasimo"
-mkdir -p "${CERT_DIR}"
-if [ ! -f "${CERT_DIR}/fullchain.pem" ]; then
-  openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
-    -subj "/CN=${HOSTNAME_FQDN}" \
-    -keyout "${CERT_DIR}/privkey.pem" \
-    -out    "${CERT_DIR}/fullchain.pem" >/dev/null
-  chmod 600 "${CERT_DIR}/privkey.pem"
-fi
-
 systemctl reload nginx
 
 # ---------------------------------------------------------------------------

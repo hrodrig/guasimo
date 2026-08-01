@@ -39,6 +39,10 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
   the GPU).
 
 ### Fixed
+- `deploy/install.sh`: generate the self-signed TLS cert **before**
+  `nginx -t`. First install previously failed with
+  `cannot load certificate "/etc/nginx/ssl/guasimo/fullchain.pem"`
+  because the vhost was tested before openssl created the files.
 - `deploy/install.sh`: mark `/opt/guasimo/llama.cpp` as a git
   `safe.directory` for root (global) so cmake's `build_info` target
   stops spamming "dubious ownership". Compare llama.cpp pin via

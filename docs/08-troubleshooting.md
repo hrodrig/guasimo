@@ -76,6 +76,20 @@ If the venv is broken (e.g. after a Python upgrade), re-run
 The cert is self-signed. The browser will warn. Click through for v1, or
 replace the cert per `docs/06-networking-and-security.md`.
 
+## Symptom: `nginx: cannot load certificate …/guasimo/fullchain.pem`
+
+First-install race: `nginx -t` ran before the self-signed cert was
+created. Fixed in `install.sh` (cert first, then `nginx -t`). Manual
+recovery without a full re-run:
+
+    sudo mkdir -p /etc/nginx/ssl/guasimo
+    sudo openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
+      -subj "/CN=$(hostname -f)" \
+      -keyout /etc/nginx/ssl/guasimo/privkey.pem \
+      -out /etc/nginx/ssl/guasimo/fullchain.pem
+    sudo chmod 600 /etc/nginx/ssl/guasimo/privkey.pem
+    sudo nginx -t && sudo systemctl enable --now nginx && sudo systemctl reload nginx
+
 ## Symptom: `No matching distribution found for open-webui==…`
 
 Ubuntu 26.04's system `python3` is 3.13+. Open WebUI still declares
