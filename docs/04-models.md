@@ -33,6 +33,10 @@ registry layers verified, manifest written, model listed as 9.0 GB.
 
 ![ollama pull qwen2.5-coder:14b-instruct-q4_K_M — success](assets/ollama-pull-qwen25-coder-14b-ok.png)
 
+Same session: `./scripts/healthcheck.sh` → **8 ok / 0 fail**;
+`./scripts/benchmark.sh primary` → ~**18** gen tok/s, ~**4** prompt
+tok/s (200 gen tokens, ~57 s wall).
+
 ## Secondary model — Qwen2.5-Coder-7B-Instruct (Q4_K_M)
 
 | Attribute         | Value                                       |

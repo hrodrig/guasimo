@@ -108,7 +108,6 @@ end-to-end runtime gate that runs against a live box.
 
 ## Status
 
-**v0.2.0** — install path (`deploy/install.sh` phases 1–5) validated on
-Ubuntu 26.04 with RTX 3060 (2026-07-31). Primary model pull validated
-2026-08-01 (`docs/04-models.md`). Benchmark + green healthcheck with a
-loaded model remain next. See `docs/09-roadmap.md` for the path to v1.0.
+**v0.2.0** — install, primary pull, healthcheck (8/0), and benchmark
+(~18 gen tok/s) validated on Ubuntu 26.04 + RTX 3060 (2026-07-31 /
+2026-08-01). See `docs/04-models.md` and `docs/09-roadmap.md`.

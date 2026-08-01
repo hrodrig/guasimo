@@ -15,8 +15,9 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
   RTX 3060 box (linked from `docs/04-models.md`, `docs/09-roadmap.md`).
 
 ### Changed
-- `docs/09-roadmap.md` / `SPECIFICATIONS.md`: mark primary pull as done
-  (2026-08-01); secondary / benchmark / healthcheck still open.
+- `docs/09-roadmap.md` / `SPECIFICATIONS.md` / `docs/04-models.md`:
+  v0.2 checklist complete on the reference box — primary pull,
+  healthcheck 8/0, benchmark ~18 gen tok/s (2026-08-01).
 
 ### Fixed
 - `deploy/install.sh`: chown `/data/models` to the Ollama service user
@@ -69,8 +70,6 @@ llama.cpp, Ollama, Open WebUI, nginx TLS). Operator still runs
   NVIDIA leftovers that collide with versioned CUDA-repo packages.
 
 ### Known limitations
-- Full v0.2 exit criterion still needs `benchmark.sh primary` + green
-  `healthcheck.sh` with the loaded model (primary pull done 2026-08-01).
 - Let's Encrypt and firewall open remain manual / separate scripts.
 
 ## [0.1.0] - 2026-07-30

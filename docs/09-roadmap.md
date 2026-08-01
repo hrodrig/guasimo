@@ -18,12 +18,16 @@ Deliverables:
       ~9 GB; see `docs/04-models.md` +
       `docs/assets/ollama-pull-qwen25-coder-14b-ok.png`.
       (`secondary` still optional / not yet pulled.)
-- [ ] `scripts/benchmark.sh primary` prints tokens/s on the box.
-- [ ] `scripts/healthcheck.sh` exits 0 on the working stack.
+- [x] `scripts/benchmark.sh primary` on the box (2026-08-01):
+      ~18 gen tok/s, ~4 prompt tok/s, 200 gen tokens
+      (see `docs/04-models.md`).
+- [x] `scripts/healthcheck.sh` exits 0: 8 ok / 0 fail
+      (nginx, open-webui, ollama, 1 model, llama-server, nvidia,
+      disk, RAM).
 
-Exit criterion (close when the unchecked items land): after
-`install.sh` + `pull-models.sh primary`, the operator has a working
-chat UI on `https://<hostname>/` answering with the primary model.
+Exit criterion: after `install.sh` + `pull-models.sh primary`, chat UI
+on `https://<hostname>/` with the primary model. Stack green on the
+reference box; confirm once in the browser if not already.
 
 ## v0.3 — Production polish
 
