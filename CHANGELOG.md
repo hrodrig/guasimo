@@ -13,6 +13,13 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
 - `docs/05-deployment.md`: documented the pre-flight step for adding the
   NVIDIA CUDA repo on Ubuntu 26.04, where the driver does not ship in
   the main archive.
+- `docs/08-troubleshooting.md`: documented the mixed NVIDIA packaging
+  collision (`nvidia-firmware` vs `nvidia-firmware-610-*`) validated on
+  Ubuntu 26.04 — root cause, symptoms, failed recovery paths
+  (`apt-get remove` / bare `apt-get -f install`), and the working fix
+  (`dpkg --purge --force-depends` then `apt-get -f install`).
+- `docs/05-deployment.md`: warning not to mix Ubuntu-archive and CUDA-repo
+  NVIDIA packages on the same box.
 
 ### Changed
 - (none yet)
@@ -48,6 +55,13 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
   run, and proceeds to build a working CPU `llama.cpp`. The operator
   fixes the driver and re-runs to enable CUDA. This aligns the script
   with the `docs/05-deployment.md` contract ("warn and continue on CPU").
+- `deploy/install.sh`: when `apt-get -f install` fails because unversioned
+  Ubuntu NVIDIA packages (`nvidia-firmware`, `libnvidia-cfg1`,
+  `libnvidia-egl-wayland21`, …) collide with versioned CUDA-repo
+  siblings (`nvidia-firmware-610-*`, `libnvidia-cfg1-610`, …) that own
+  the same files, purge the unversioned leftovers and retry. Also makes
+  `recover_dpkg` non-fatal under `set -e` so a stuck apt graph cannot
+  abort the whole install before the CPU fallback path runs.
 
 ### Removed
 - (none yet)

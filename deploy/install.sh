@@ -31,6 +31,40 @@ banner() { printf "\n\033[1;36m[%s] %s\033[0m\n" "$(date +%H:%M:%S)" "$*"; }
 warn()   { printf "\033[1;33mWARN: %s\033[0m\n" "$*" >&2; }
 die()    { printf "\033[1;31mFATAL: %s\033[0m\n" "$*" >&2; exit 1; }
 
+# Ubuntu archive ships unversioned NVIDIA packages (nvidia-firmware,
+# libnvidia-cfg1, libnvidia-egl-wayland21, …). The NVIDIA CUDA repo ships
+# versioned siblings (nvidia-firmware-610-*, libnvidia-cfg1-610, …) that
+# install the SAME files. Mixing both schemes leaves apt stuck:
+#   dpkg: trying to overwrite '.../gsp_ga10x.bin', which is also in package
+#   nvidia-firmware
+# Prefer the versioned scheme (what nvidia-driver-NNN from the CUDA repo
+# depends on). Purge the unversioned leftovers so apt-get -f can proceed.
+# No-op when the unversioned packages are not installed.
+purge_unversioned_nvidia_conflict() {
+  local pkgs=()
+  local cand
+  for cand in nvidia-firmware libnvidia-cfg1 libnvidia-egl-wayland21 \
+              libnvidia-egl-xcb1 libnvidia-egl-xlib1 libnvidia-gpucomp \
+              nvidia-modprobe; do
+    if dpkg-query -W -f='${Status}' "${cand}" 2>/dev/null \
+         | grep -q 'install ok installed'; then
+      pkgs+=("${cand}")
+    fi
+  done
+  if [ "${#pkgs[@]}" -eq 0 ]; then
+    return 1
+  fi
+  echo "  purging unversioned NVIDIA leftovers that conflict with"
+  echo "  versioned nvidia-*-NNN packages: ${pkgs[*]}"
+  # Must use dpkg directly — apt-get remove refuses while the dependency
+  # graph is already broken ("You might want to run apt --fix-broken").
+  # --force-depends lets us drop the conflicting unversioned packages
+  # without satisfying nvidia-driver-NNN first; apt-get -f then installs
+  # the versioned replacements.
+  dpkg --purge --force-depends "${pkgs[@]}" || return 1
+  return 0
+}
+
 # Repair a half-configured dpkg database AND a broken apt dependency graph
 # before any apt install. Two distinct failure modes need two distinct checks:
 #
@@ -43,16 +77,33 @@ die()    { printf "\033[1;31mFATAL: %s\033[0m\n" "$*" >&2; exit 1; }
 #     resolver refuses to proceed with "Unmet dependencies" /
 #     "it is not going to be installed". Fix: apt-get -f install.
 #
+# If apt-get -f install still fails, try the known mixed-repo NVIDIA
+# conflict (unversioned Ubuntu packages vs versioned CUDA-repo packages),
+# then retry. Never abort the whole install here — caller decides whether
+# to fall back to CPU.
+#
 # Both are no-ops when the system is clean.
 recover_dpkg() {
   if [ -n "$(dpkg --audit 2>/dev/null || true)" ]; then
     echo "  repairing half-configured packages (dpkg --configure -a)"
-    dpkg --configure -a
+    dpkg --configure -a || warn "dpkg --configure -a failed; continuing"
   fi
-  if ! apt-get check >/dev/null 2>&1; then
-    echo "  repairing broken apt dependencies (apt-get -f install)"
-    apt-get -f install -y
+  if apt-get check >/dev/null 2>&1; then
+    return 0
   fi
+  echo "  repairing broken apt dependencies (apt-get -f install)"
+  if apt-get -f install -y; then
+    return 0
+  fi
+  warn "apt-get -f install failed; checking for mixed NVIDIA packaging"
+  if purge_unversioned_nvidia_conflict; then
+    echo "  retrying apt-get -f install after NVIDIA conflict purge"
+    if apt-get -f install -y; then
+      return 0
+    fi
+  fi
+  warn "could not fully repair apt dependencies; see docs/08-troubleshooting.md"
+  return 1
 }
 
 [ "$(id -u)" -eq 0 ] || die "run as root: sudo $0"

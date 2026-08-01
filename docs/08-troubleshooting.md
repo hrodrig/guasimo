@@ -118,6 +118,148 @@ If the driver unpack still fails after the repair, look for:
 After the driver loads (`nvidia-smi` works as a non-root user), re-run
 `install.sh`. Phase 3 will build the CUDA variant.
 
+## Symptom: `trying to overwrite` between `nvidia-firmware` and `nvidia-firmware-610`
+
+Validated on Ubuntu 26.04 (`resolute`) with RTX 3060 during the first
+real `install.sh` run (2026-07-31). This is **not** a half-configured
+dpkg database — it is a packaging-scheme collision. `apt-get -f install`
+alone cannot fix it.
+
+### Root cause
+
+Two packaging schemes ship the same NVIDIA files under different package
+names:
+
+| Scheme | Source | Version suffix | Example packages |
+|--------|--------|----------------|------------------|
+| Unversioned | Ubuntu archive | `…-1ubuntu1` | `nvidia-firmware`, `libnvidia-cfg1`, `libnvidia-egl-wayland21` |
+| Versioned | NVIDIA CUDA repo | `…-0ubuntu0.26.04.1` | `nvidia-firmware-610-*`, `libnvidia-cfg1-610`, `libnvidia-gl-610` |
+
+Shared paths (examples):
+
+- `/lib/firmware/nvidia/610.43.02/gsp_ga10x.bin`
+- `/usr/lib/x86_64-linux-gnu/libnvidia-cfg.so.610.43.02`
+- `/usr/lib/x86_64-linux-gnu/libnvidia-egl-wayland2.so.1.0.1`
+
+How the box gets stuck: an earlier install left the unversioned Ubuntu
+packages; later `nvidia-driver-610` from the CUDA repo (or a partial
+install) needs the versioned siblings. dpkg refuses the overwrite → apt
+reports unmet Depends forever.
+
+### How it looks in the wild
+
+Real console excerpts from Ubuntu 26.04 / driver 610.43.02 (2026-07-31).
+
+**Phase A — unmet Depends after a half-broken install:**
+
+```
+nvidia-driver-610 is already the newest version (610.43.02-0ubuntu0.26.04.1).
+nvidia-cuda-toolkit is already the newest version (12.4.131~12.4.1-8).
+You might want to run 'apt --fix-broken install' to correct these.
+The following packages have unmet dependencies:
+ nvidia-dkms-610 : Depends: nvidia-firmware-610-610.43.02 but it is not going to be installed
+ nvidia-driver-610 : Depends: libnvidia-gl-610 (= 610.43.02-0ubuntu0.26.04.1) but it is not going to be installed
+                     Depends: libnvidia-cfg1-610 (= 610.43.02-0ubuntu0.26.04.1) but it is not going to be installed
+ nvidia-kernel-common-610 : Depends: nvidia-firmware-610-610.43.02 but it is not going to be installed
+ xserver-xorg-video-nvidia-610 : Depends: libnvidia-cfg1-610 (= 610.43.02-0ubuntu0.26.04.1) but it is not going to be installed
+E: Unmet dependencies. Try 'apt --fix-broken install' with no packages (or specify a solution).
+```
+
+**Phase B — `apt-get -f install` hits the file collision:**
+
+```
+Preparing to unpack …/nvidia-firmware-610-610.43.02_610.43.02-0ubuntu0.26.04.1_amd64.deb…
+dpkg: error processing archive …/nvidia-firmware-610-610.43.02_….deb (--unpack):
+ trying to overwrite '/lib/firmware/nvidia/610.43.02/gsp_ga10x.bin', which is also in package nvidia-firmware (610.43.02-1ubuntu1)
+Preparing to unpack …/libnvidia-gl-610_610.43.02-0ubuntu0.26.04.1_amd64.deb…
+dpkg: error processing archive …/libnvidia-gl-610_….deb (--unpack):
+ trying to overwrite '/usr/lib/x86_64-linux-gnu/libnvidia-egl-wayland2.so.1.0.1', which is also in package libnvidia-egl-wayland21:amd64 (1.0.1-1ubuntu1)
+Preparing to unpack …/libnvidia-cfg1-610_610.43.02-0ubuntu0.26.04.1_amd64.deb…
+dpkg: error processing archive …/libnvidia-cfg1-610_….deb (--unpack):
+ trying to overwrite '/usr/lib/x86_64-linux-gnu/libnvidia-cfg.so.610.43.02', which is also in package libnvidia-cfg1:amd64 (610.43.02-1ubuntu1)
+E: Sub-process /usr/bin/dpkg returned an error code (1)
+```
+
+**Phase C — `apt-get remove --purge` does NOT work** while the graph is
+broken (packages stay installed; same unmet Depends message as Phase A).
+
+### Fix (prefer versioned CUDA-repo scheme)
+
+Bypass apt's resolver with `dpkg`, then let apt finish the graph:
+
+    sudo dpkg --purge --force-depends \
+      nvidia-firmware libnvidia-cfg1 libnvidia-egl-wayland21 \
+      libnvidia-egl-xcb1 libnvidia-egl-xlib1 libnvidia-gpucomp \
+      nvidia-modprobe
+    sudo apt-get -f install -y
+    sudo apt-get autoremove -y
+    # then reboot — see "After the fix" below
+    sudo reboot
+
+**Phase D — successful recovery (real output, abbreviated):**
+
+```
+Removing nvidia-firmware (610.43.02-1ubuntu1)…
+dpkg: warning: while removing nvidia-firmware, directory '/lib/firmware/nvidia' not empty so not removed
+Removing libnvidia-cfg1:amd64 (610.43.02-1ubuntu1)…
+Removing libnvidia-egl-wayland21:amd64 (1.0.1-1ubuntu1)…
+…
+The following NEW packages will be installed:
+  libnvidia-cfg1-610 libnvidia-gl-610 nvidia-firmware-610-610.43.02
+…
+Setting up nvidia-dkms-610 (610.43.02-0ubuntu0.26.04.1)…
+Building for 7.0.0-14-generic and 7.0.0-28-generic
+Building initial module nvidia/610.43.02 for 7.0.0-14-generic
+… Signing module …/nvidia.ko …
+Installing /lib/modules/7.0.0-14-generic/updates/dkms/nvidia.ko.zst
+…
+Building initial module nvidia/610.43.02 for 7.0.0-28-generic
+…
+Setting up nvidia-driver-610 (610.43.02-0ubuntu0.26.04.1)…
+Setting up nvidia-cuda-toolkit (12.4.131~12.4.1-8)…
+```
+
+The `directory '/lib/firmware/nvidia' not empty` warning is harmless —
+versioned firmware files land in the same tree a moment later.
+
+Fallback if purge is awkward — overwrite first, then drop the orphaned
+unversioned records:
+
+    sudo apt-get -o Dpkg::Options::="--force-overwrite" -f install -y
+    sudo dpkg --purge --force-depends \
+      nvidia-firmware libnvidia-cfg1 libnvidia-egl-wayland21 \
+      libnvidia-egl-xcb1 libnvidia-egl-xlib1 libnvidia-gpucomp \
+      nvidia-modprobe
+
+### After the fix — reboot before trusting `nvidia-smi`
+
+DKMS just built and signed the modules. Until reboot (or a careful
+`modprobe nvidia`), `nvidia-smi` still fails even though packages are
+healthy:
+
+```
+NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA
+driver. Make sure that the latest NVIDIA driver is installed and running.
+```
+
+That message here means **module not loaded yet**, not "packages still
+broken". Reboot, then verify:
+
+    sudo reboot
+    # after reboot:
+    nvidia-smi
+    cd ~/guasimo && git pull && sudo ./deploy/install.sh
+
+`install.sh` automates the purge path inside `recover_dpkg` /
+`purge_unversioned_nvidia_conflict` when it detects this state.
+
+### Prevention
+
+Pick **one** driver source. On Ubuntu 26.04 the documented path is the
+NVIDIA CUDA repo (see `docs/05-deployment.md` pre-flight). Do not also
+install unversioned Ubuntu-archive NVIDIA packages (`nvidia-firmware`,
+`libnvidia-cfg1`, …) on the same box.
+
 ## Symptom: IDE plugin can't reach the API
 
 - Is the plugin pointed at `http://127.0.0.1:11434/v1`? (Not `https` — Ollama

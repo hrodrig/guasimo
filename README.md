@@ -53,8 +53,8 @@ the others.
 
 ## Quick start (Ubuntu target machine)
 
-    git clone <this-repo> ~/ia-lab-home
-    cd ~/ia-lab-home
+    git clone <this-repo> ~/guasimo
+    cd ~/guasimo
     sudo ./deploy/install.sh          # detects GPU, builds llama.cpp, wires systemd
     ./scripts/pull-models.sh primary  # ~10 GB primary code model
     ./scripts/benchmark.sh primary    # validates tokens/s on this box

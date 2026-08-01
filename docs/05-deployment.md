@@ -129,6 +129,15 @@ repo manually before re-running:
 
 After that, `install.sh` detects the driver and continues normally.
 
+**Do not mix driver sources.** The Ubuntu archive and the NVIDIA CUDA
+repo ship overlapping NVIDIA files under different package names
+(unversioned `nvidia-firmware` / `libnvidia-cfg1` vs versioned
+`nvidia-firmware-610-*` / `libnvidia-cfg1-610`). Installing both leaves
+apt stuck on `trying to overwrite` / unmet Depends. Prefer the CUDA
+repo on 26.04. If the box is already wedged, see
+`docs/08-troubleshooting.md` (`trying to overwrite` between
+`nvidia-firmware` and `nvidia-firmware-610`).
+
 ## Output of a successful install
 
 ```
