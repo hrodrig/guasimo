@@ -10,6 +10,23 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
 ## [Unreleased]
 
 ### Added
+- (none yet)
+
+### Changed
+- (none yet)
+
+### Fixed
+- (none yet)
+
+### Removed
+- (none yet)
+
+## [0.2.1] - 2026-08-01
+
+v0.2 exit criterion closed on the reference box. Fix post-reboot Ollama
+crash-loop when model dir ownership was wrong.
+
+### Added
 - `docs/assets/ollama-pull-qwen25-coder-14b-ok.png`: evidence that
   `./scripts/pull-models.sh primary` completed on the Ubuntu 26.04 +
   RTX 3060 box (linked from `docs/04-models.md`, `docs/09-roadmap.md`).
@@ -18,17 +35,13 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
 
 ### Changed
 - `docs/09-roadmap.md` / `SPECIFICATIONS.md` / `docs/04-models.md` /
-  `docs/06-networking-and-security.md`: v0.2 exit criterion met on the
-  reference box — primary pull, healthcheck 8/0, ~18 gen tok/s, LAN UI
-  (2026-08-01).
+  `docs/06-networking-and-security.md`: v0.2 exit criterion met —
+  primary pull, healthcheck 8/0, ~18 gen tok/s, LAN UI (2026-08-01).
 
 ### Fixed
 - `deploy/install.sh`: chown `/data/models` to the Ollama service user
   (`ollama`), not `guasimo`. Prevents crash-loop
   `mkdir /data/models/blobs: permission denied` after reboot / power loss.
-
-### Removed
-- (none yet)
 
 ## [0.2.0] - 2026-07-31
 
@@ -121,6 +134,7 @@ Initial scaffolding. A new operator can read `SPECIFICATIONS.md` and
 - Firewall is **not** opened automatically. `scripts/open-firewall.sh`
   is the explicit, audited path.
 
-[Unreleased]: https://github.com/hrodrig/guasimo/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/hrodrig/guasimo/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/hrodrig/guasimo/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/hrodrig/guasimo/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/hrodrig/guasimo/releases/tag/v0.1.0
