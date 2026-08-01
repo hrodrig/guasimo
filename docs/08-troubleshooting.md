@@ -95,6 +95,29 @@ builds the WebUI venv with that interpreter. Manual recovery:
 Expected on Ubuntu 26.04 — the archive only ships 3.13+. Do not add
 random PPAs; let `install.sh` provision 3.12 via uv (see above).
 
+## Symptom: pip downloads `torch` + `nvidia-*-cu13` for hundreds of MB
+
+Open WebUI's pip package depends on `sentence-transformers` / Whisper,
+which pull **PyTorch**. The default Linux torch wheel also pulls pip
+`nvidia-cudnn-cu13`, `nvidia-nccl-cu13`, etc. — separate from the host
+NVIDIA driver you already installed for Ollama/llama.cpp. Inference
+does **not** use those pip CUDA libs; they only waste disk and time.
+
+`install.sh` pre-installs **CPU-only** torch from
+`https://download.pytorch.org/whl/cpu` before `open-webui`, so the
+resolver skips the CUDA companion wheels. You still get a large
+download (torch CPU + open-webui itself ~100 MB+), but not another
+copy of the CUDA stack.
+
+If a previous run already filled the venv with CUDA torch:
+
+    sudo rm -rf /opt/guasimo/webui-venv
+    sudo ./deploy/install.sh
+
+There is no official `open-webui[min]` on PyPI yet (upstream discussion
+only). For this stack the UI talks to Ollama; local GPU torch is not
+required.
+
 ## Symptom: llama.cpp build fails with `uint32_t` does not name a type
 
 On Ubuntu 26.04 (GCC 15), building pinned llama.cpp `b4568` dies in

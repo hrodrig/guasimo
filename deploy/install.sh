@@ -488,6 +488,15 @@ fi
 chown -R "${SERVICE_USER}:${SERVICE_USER}" "${WEBUI_VENV}" \
   "${INSTALL_ROOT}/uv" "${INSTALL_ROOT}/python" 2>/dev/null || true
 "${WEBUI_VENV}/bin/pip" install --upgrade pip wheel >/dev/null
+# Open WebUI pulls torch (RAG / Whisper / embeddings). Default torch
+# wheels drag nvidia-*-cu13 pip packages (~1 GB+) that duplicate the
+# host driver and are unused — Ollama + our llama.cpp own the GPU.
+# Pin CPU torch first so the resolver does not fetch CUDA wheels.
+echo "  installing CPU-only torch (avoid pip nvidia/CUDA wheels)"
+"${WEBUI_VENV}/bin/pip" install \
+  --index-url https://download.pytorch.org/whl/cpu \
+  torch
+echo "  installing open-webui==${OPEN_WEBUI_VERSION} (large; RAG stack)"
 "${WEBUI_VENV}/bin/pip" install \
   "open-webui==${OPEN_WEBUI_VERSION}" "httpx" "uvicorn"
 

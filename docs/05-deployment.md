@@ -79,7 +79,9 @@ Uses `apt-mark hold` only when we have a known-good pinned version.
   requires `>=3.11,<3.13`). Ubuntu 26.04 has no `python3.12` apt package,
   so the script bootstraps `uv` under `/opt/guasimo/uv` and installs
   CPython 3.12 into `/opt/guasimo/python` when needed.
-- `pip install open-webui==0.6.43` (pin in `deploy/install.sh`).
+- `pip install` CPU-only `torch`, then `open-webui==0.6.43` (pin in
+  `deploy/install.sh`). CPU torch avoids pip pulling a second CUDA
+  stack; inference stays on host Ollama/llama.cpp.
 - Drops the systemd unit from `deploy/systemd/open-webui.service`.
 - Drops the nginx vhost from `deploy/nginx/sites-available/guasimo.conf` and
   symlinks it into `sites-enabled`.

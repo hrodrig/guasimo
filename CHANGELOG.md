@@ -33,6 +33,10 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
   distro 3.11/3.12 is present the installer bootstraps [uv](https://github.com/astral-sh/uv)
   under `/opt/guasimo/uv` and installs CPython 3.12 into
   `/opt/guasimo/python`.
+- Before `pip install open-webui`, install **CPU-only** `torch` from the
+  PyTorch CPU index so pip does not also fetch `nvidia-*-cu13` wheels
+  (~1 GB+) that duplicate the host driver and are unused (Ollama owns
+  the GPU).
 
 ### Fixed
 - `deploy/install.sh`: mark `/opt/guasimo/llama.cpp` as a git
