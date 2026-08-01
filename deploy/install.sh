@@ -11,8 +11,11 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 LLAMA_CPP_REF="${LLAMA_CPP_REF:-b4568}"              # llama.cpp git SHA / tag
 OLLAMA_VERSION="${OLLAMA_VERSION:-0.5.7}"            # fallback if apt < this
-OPEN_WEBUI_VERSION="${OPEN_WEBUI_VERSION:-0.3.21}"   # open-webui python pkg
+# Open WebUI requires Python >=3.11,<3.13 (no 3.13+ yet). Ubuntu 26.04's
+# default python3 is too new, so we venv with python3.12 (see phase 5).
+OPEN_WEBUI_VERSION="${OPEN_WEBUI_VERSION:-0.6.43}"   # open-webui python pkg
 REQUIRED_UBUNTU_MAJOR=26
+WEBUI_PYTHON_MAX=12                                 # major.minor: 3.WEBUI_PYTHON_MAX
 
 # Repo location after install
 INSTALL_ROOT="/opt/guasimo"
@@ -179,8 +182,9 @@ export DEBIAN_FRONTEND=noninteractive
 recover_dpkg
 
 PKGS=(build-essential cmake git curl wget jq python3 python3-venv
-      python3-pip nginx sqlite3 uuid-runtime ca-certificates
-      libssl-dev pkg-config lm-sensors nvme-cli smartmontools)
+      python3-pip python3.12 python3.12-venv nginx sqlite3 uuid-runtime
+      ca-certificates libssl-dev pkg-config lm-sensors nvme-cli
+      smartmontools)
 
 # Add the detected NVIDIA driver + CUDA toolkit if hardware is present.
 # If detection failed (DRIVER_PKG empty), we keep going on CPU and let
@@ -302,23 +306,35 @@ if [ "${USE_CUDA}" = n ]; then
 fi
 
 # Root runs this script; phase 2 chowns INSTALL_ROOT to SERVICE_USER, so
-# git refuses the tree with "fatal: detected dubious ownership". Scope
-# safe.directory to this repo for all subsequent git ops — no global
-# git config write.
+# git refuses the tree with "fatal: detected dubious ownership". Mark the
+# tree safe for root (covers our git calls AND cmake's build_info target,
+# which shells out to git without our -c wrapper).
+mark_llama_safe_directory() {
+  [ -d "${LLAMA_SRC_DIR}/.git" ] || return 0
+  if ! git config --global --get-all safe.directory 2>/dev/null \
+       | grep -qx "${LLAMA_SRC_DIR}"; then
+    git config --global --add safe.directory "${LLAMA_SRC_DIR}"
+  fi
+}
+mark_llama_safe_directory
 git_llama() {
   git -c "safe.directory=${LLAMA_SRC_DIR}" -C "${LLAMA_SRC_DIR}" "$@"
 }
 
 # Build if missing or SHA drifted. Accept either the install symlink or
 # the cmake output path (operator may have built by hand mid-install).
+# Compare resolved commit SHAs — LLAMA_CPP_REF is often a tag (b4568)
+# while rev-parse --short HEAD is a commit id (a4417dd); string equality
+# on those never matches and forced a rebuild every run.
 NEED_BUILD=y
 if { [ -x "${INSTALL_ROOT}/llama-server" ] \
      || [ -x "${LLAMA_SRC_DIR}/build/bin/llama-server" ]; } \
    && [ -d "${LLAMA_SRC_DIR}/.git" ]; then
-  CURRENT_SHA=$(git_llama rev-parse --short HEAD 2>/dev/null || echo none)
-  if [ "${CURRENT_SHA}" = "${LLAMA_CPP_REF}" ]; then
+  CURRENT_SHA=$(git_llama rev-parse HEAD 2>/dev/null || echo none)
+  PINNED_SHA=$(git_llama rev-parse "${LLAMA_CPP_REF}^{commit}" 2>/dev/null || echo none)
+  if [ "${CURRENT_SHA}" != none ] && [ "${CURRENT_SHA}" = "${PINNED_SHA}" ]; then
     NEED_BUILD=n
-    echo "  llama.cpp already built at ${LLAMA_CPP_REF}"
+    echo "  llama.cpp already built at ${LLAMA_CPP_REF} (${CURRENT_SHA:0:7})"
   fi
 fi
 
@@ -361,6 +377,7 @@ if [ "${NEED_BUILD}" = y ]; then
     git_llama fetch --depth=1 origin "${LLAMA_CPP_REF}"
     git_llama checkout FETCH_HEAD
   fi
+  mark_llama_safe_directory
   patch_llama_gcc15
   cmake -S "${LLAMA_SRC_DIR}" -B "${LLAMA_SRC_DIR}/build" \
         -DCMAKE_BUILD_TYPE=Release "${CMAKE_FLAGS[@]}"
@@ -412,10 +429,46 @@ systemctl enable --now ollama
 # ---------------------------------------------------------------------------
 banner "phase 5/5  open-webui + nginx"
 
-WEBUI_VENV="${INSTALL_ROOT}/webui-venv"
-if [ ! -d "${WEBUI_VENV}" ]; then
-  python3 -m venv "${WEBUI_VENV}"
+# Open WebUI wheels require Python >=3.11,<3.13. Prefer 3.12; fall back
+# to 3.11. Refuse the system python3 if it is 3.13+ (Ubuntu 26.04 default).
+WEBUI_PYTHON=""
+for cand in python3.12 python3.11; do
+  if command -v "${cand}" >/dev/null 2>&1; then
+    WEBUI_PYTHON="${cand}"
+    break
+  fi
+done
+if [ -z "${WEBUI_PYTHON}" ]; then
+  echo "  installing python3.12 for Open WebUI venv"
+  apt-get install -y --no-install-recommends python3.12 python3.12-venv
+  WEBUI_PYTHON="python3.12"
 fi
+command -v "${WEBUI_PYTHON}" >/dev/null 2>&1 \
+  || die "need python3.12 or python3.11 for Open WebUI; ${WEBUI_PYTHON} missing"
+WEBUI_PY_MINOR=$("${WEBUI_PYTHON}" -c 'import sys; print(sys.version_info.minor)')
+if [ "${WEBUI_PY_MINOR}" -gt "${WEBUI_PYTHON_MAX}" ]; then
+  die "Open WebUI needs Python 3.11–3.12; ${WEBUI_PYTHON} is 3.${WEBUI_PY_MINOR}"
+fi
+echo "  Open WebUI venv python: ${WEBUI_PYTHON} (3.${WEBUI_PY_MINOR})"
+
+WEBUI_VENV="${INSTALL_ROOT}/webui-venv"
+# Recreate the venv if missing or built with an unsupported interpreter
+# (e.g. a previous run used system python3.13 and left an empty/broken venv).
+NEED_VENV=y
+if [ -x "${WEBUI_VENV}/bin/python" ]; then
+  VENV_MINOR=$("${WEBUI_VENV}/bin/python" -c \
+    'import sys; print(sys.version_info.minor)' 2>/dev/null || echo 99)
+  if [ "${VENV_MINOR}" -ge 11 ] && [ "${VENV_MINOR}" -le "${WEBUI_PYTHON_MAX}" ]; then
+    NEED_VENV=n
+  else
+    echo "  recreating venv (was Python 3.${VENV_MINOR}; need 3.11–3.12)"
+    rm -rf "${WEBUI_VENV}"
+  fi
+fi
+if [ "${NEED_VENV}" = y ]; then
+  "${WEBUI_PYTHON}" -m venv "${WEBUI_VENV}"
+fi
+chown -R "${SERVICE_USER}:${SERVICE_USER}" "${WEBUI_VENV}"
 "${WEBUI_VENV}/bin/pip" install --upgrade pip wheel >/dev/null
 "${WEBUI_VENV}/bin/pip" install \
   "open-webui==${OPEN_WEBUI_VERSION}" "httpx" "uvicorn"

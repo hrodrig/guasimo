@@ -27,13 +27,19 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
   `guasimo.target`, nginx `guasimo.conf`, health `GET /guasimo-health`.
   `uninstall.sh` also removes leftover `/opt/ia-lab` artefacts from
   pre-rebrand installs.
+- Open WebUI pin `0.3.21` → `0.6.43`. The venv is created with
+  `python3.12` (package installed if missing) because Ubuntu 26.04's
+  default `python3` is 3.13+ and Open WebUI still requires
+  `Requires-Python >=3.11,<3.13`.
 
 ### Fixed
-- `deploy/install.sh`: git ops on `/opt/guasimo/llama.cpp` use
-  `safe.directory` so root is not blocked by "dubious ownership" after
-  phase 2 chowns the tree to the `guasimo` service user. Also treat
-  `build/bin/llama-server` as already-built (not only the install
-  symlink), so a hand-finished cmake build is not wiped on re-run.
+- `deploy/install.sh`: mark `/opt/guasimo/llama.cpp` as a git
+  `safe.directory` for root (global) so cmake's `build_info` target
+  stops spamming "dubious ownership". Compare llama.cpp pin via
+  resolved commit SHA (tag `b4568` ≠ short SHA `a4417dd`), so a
+  finished CUDA build is not rebuilt on every re-run. Treat
+  `build/bin/llama-server` as already-built, not only the install
+  symlink.
 - `deploy/install.sh`: after cloning llama.cpp `b4568`, patch
   `src/llama-mmap.h` to `#include <cstdint>` when missing. GCC 15 on
   Ubuntu 26.04 no longer provides `uint32_t` via transitive headers;

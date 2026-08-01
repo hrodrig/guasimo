@@ -76,6 +76,19 @@ If the venv is broken (e.g. after a Python upgrade), re-run
 The cert is self-signed. The browser will warn. Click through for v1, or
 replace the cert per `docs/06-networking-and-security.md`.
 
+## Symptom: `No matching distribution found for open-webui==…`
+
+Ubuntu 26.04's system `python3` is 3.13+. Open WebUI still declares
+`Requires-Python >=3.11,<3.13`, so pip on a 3.13 venv ignores every
+release (including the pin) and reports "from versions: none".
+
+`install.sh` installs `python3.12` / `python3.12-venv` and builds the
+WebUI venv with that interpreter. Manual recovery:
+
+    sudo apt-get install -y python3.12 python3.12-venv
+    sudo rm -rf /opt/guasimo/webui-venv
+    sudo ./deploy/install.sh
+
 ## Symptom: llama.cpp build fails with `uint32_t` does not name a type
 
 On Ubuntu 26.04 (GCC 15), building pinned llama.cpp `b4568` dies in

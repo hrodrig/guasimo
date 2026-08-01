@@ -44,7 +44,8 @@ Exits non-zero on Ubuntu version mismatch.
 
 Installs via `apt`:
 
-- build-essential, cmake, git, curl, jq, python3-pip, nginx, sqlite3,
+- build-essential, cmake, git, curl, jq, python3-pip, python3.12,
+  python3.12-venv, nginx, sqlite3,
   uuid-runtime, ca-certificates, libssl-dev.
 - `nvidia-driver-<ver>` and `nvidia-cuda-toolkit-<ver>` only if NVIDIA GPU
   detected. The version number is **not** pinned; the script queries
@@ -75,8 +76,9 @@ Uses `apt-mark hold` only when we have a known-good pinned version.
 
 ### Phase 5 — Open WebUI + nginx
 
-- Creates Python venv at `/opt/guasimo/webui-venv`.
-- `pip install open-webui` pinned to `requirements.txt`.
+- Creates a Python 3.12 venv at `/opt/guasimo/webui-venv` (Open WebUI
+  requires `>=3.11,<3.13`; Ubuntu 26.04's default `python3` is too new).
+- `pip install open-webui==0.6.43` (pin in `deploy/install.sh`).
 - Drops the systemd unit from `deploy/systemd/open-webui.service`.
 - Drops the nginx vhost from `deploy/nginx/sites-available/guasimo.conf` and
   symlinks it into `sites-enabled`.
@@ -145,7 +147,7 @@ repo on 26.04. If the box is already wedged, see
 [phase 2/5] packages ............ ok (120 packages, 0 new)
 [phase 3/5] llama.cpp ........... ok (built at sha abc123, AVX2, native)
 [phase 4/5] ollama .............. ok (Ollama 0.5.x, using local llama.cpp)
-[phase 5/5] webui + nginx ....... ok (Open WebUI 0.3.x, nginx 1.26)
+[phase 5/5] webui + nginx ....... ok (Open WebUI 0.6.x, nginx 1.26)
 
 URLs:
   chat   https://<hostname>.local/
