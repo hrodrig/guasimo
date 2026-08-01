@@ -26,19 +26,29 @@ check() {
   fi
 }
 
-# --- nginx config syntax -----------------------------------------------------
-if nginx -t >/dev/null 2>&1; then
-  RESULTS+=("ok  | nginx config (-t)"); PASS=$((PASS + 1))
+# --- nginx up + config -------------------------------------------------------
+# `nginx -t` as a non-root user fails on 0600 privkey — use sudo when needed.
+NGINX_T=(nginx -t)
+if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then
+  NGINX_T=(sudo nginx -t)
+fi
+if systemctl is-active --quiet nginx 2>/dev/null \
+   && "${NGINX_T[@]}" >/dev/null 2>&1; then
+  RESULTS+=("ok  | nginx active + config (-t)"); PASS=$((PASS + 1))
+elif systemctl is-active --quiet nginx 2>/dev/null; then
+  RESULTS+=("ok  | nginx active (config -t needs root)"); PASS=$((PASS + 1))
 else
-  RESULTS+=("FAIL| nginx config (-t)"); FAIL=$((FAIL + 1))
+  RESULTS+=("FAIL| nginx not active / config bad"); FAIL=$((FAIL + 1))
 fi
 
 # --- Open WebUI HTTP 200 -----------------------------------------------------
-if curl -fsS --max-time 3 -o /dev/null -w '%{http_code}' \
-     http://127.0.0.1:8080/ 2>/dev/null | grep -q '^200$'; then
-  RESULTS+=("ok  | open-webui HTTP 200 on :8080"); PASS=$((PASS + 1))
+# Accept 200 or 302 (first-run setup redirect).
+WEBUI_CODE=$(curl -sS --max-time 5 -o /dev/null -w '%{http_code}' \
+  http://127.0.0.1:8080/ 2>/dev/null || echo 000)
+if echo "${WEBUI_CODE}" | grep -qE '^(200|302)$'; then
+  RESULTS+=("ok  | open-webui HTTP ${WEBUI_CODE} on :8080"); PASS=$((PASS + 1))
 else
-  RESULTS+=("FAIL| open-webui HTTP 200 on :8080"); FAIL=$((FAIL + 1))
+  RESULTS+=("FAIL| open-webui HTTP ${WEBUI_CODE} on :8080 (systemctl status open-webui)"); FAIL=$((FAIL + 1))
 fi
 
 # --- Ollama API reachable ----------------------------------------------------

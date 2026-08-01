@@ -16,8 +16,19 @@ set -euo pipefail
 
 DATA_DIR="/data/models"
 BULK_DIR="/bulk/models"
+# Prefer the service log dir when writable (root / guasimo); otherwise a
+# per-user cache path so an unprivileged operator can run this script.
 LOG_DIR="/var/log/guasimo"
-mkdir -p "${DATA_DIR}" "${BULK_DIR}" "${LOG_DIR}"
+PULL_LOG=""
+if mkdir -p "${LOG_DIR}" 2>/dev/null && touch "${LOG_DIR}/.write-test" 2>/dev/null; then
+  rm -f "${LOG_DIR}/.write-test"
+  PULL_LOG="${LOG_DIR}/pull.log"
+else
+  LOG_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/guasimo"
+  mkdir -p "${LOG_DIR}"
+  PULL_LOG="${LOG_DIR}/pull.log"
+fi
+mkdir -p "${DATA_DIR}" "${BULK_DIR}" 2>/dev/null || true
 chown -R guasimo:guasimo "${DATA_DIR}" "${BULK_DIR}" 2>/dev/null || true
 
 WHAT="${1:-primary}"
@@ -65,16 +76,18 @@ if [ "${FREE_GB}" -lt $((EST_GB + 5)) ]; then
   exit 3
 fi
 
-# Pull, as guasimo user (Ollama writes into OLLAMA_MODELS=/data/models).
+# ollama CLI is a client; the daemon (systemd) owns OLLAMA_MODELS writes.
+# Run as the invoking user — no need for sudo -u guasimo on the client.
 run_ollama() {
-  sudo -u guasimo -H ollama "$@"
+  ollama "$@"
 }
 
+echo "  pull log: ${PULL_LOG}"
 for t in "${TARGETS[@]}"; do
   echo
   echo ">>> pulling ${t}"
-  if ! run_ollama pull "${t}" 2>&1 | tee -a "${LOG_DIR}/pull.log"; then
-    echo "pull failed for ${t}; see ${LOG_DIR}/pull.log" >&2
+  if ! run_ollama pull "${t}" 2>&1 | tee -a "${PULL_LOG}"; then
+    echo "pull failed for ${t}; see ${PULL_LOG}" >&2
     exit 1
   fi
 done
