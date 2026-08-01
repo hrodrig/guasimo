@@ -30,6 +30,14 @@ This means:
 - The model API is never exposed to the LAN, only to Open WebUI on
   loopback.
 
+### Validated LAN access (2026-08-01)
+
+Reference box at `192.168.10.69`: browser on another LAN host opened
+`https://192.168.10.69/` (self-signed → "Not secure" warning expected),
+Open WebUI with `qwen2.5-coder:14b-instruct-q4_K_M` selected.
+
+![Open WebUI over LAN at 192.168.10.69](assets/open-webui-lan-192-168-10-69.png)
+
 ## TLS
 
 - `deploy/install.sh` generates a self-signed cert for the hostname at

@@ -25,9 +25,10 @@ Deliverables:
       (nginx, open-webui, ollama, 1 model, llama-server, nvidia,
       disk, RAM).
 
-Exit criterion: after `install.sh` + `pull-models.sh primary`, chat UI
-on `https://<hostname>/` with the primary model. Stack green on the
-reference box; confirm once in the browser if not already.
+Exit criterion **met** (2026-08-01): install + primary pull +
+healthcheck + benchmark + LAN chat at `https://192.168.10.69/` with
+primary model selected. Evidence:
+`docs/assets/open-webui-lan-192-168-10-69.png`.
 
 ## v0.3 — Production polish
 

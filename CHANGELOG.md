@@ -13,11 +13,14 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
 - `docs/assets/ollama-pull-qwen25-coder-14b-ok.png`: evidence that
   `./scripts/pull-models.sh primary` completed on the Ubuntu 26.04 +
   RTX 3060 box (linked from `docs/04-models.md`, `docs/09-roadmap.md`).
+- `docs/assets/open-webui-lan-192-168-10-69.png`: LAN browser chat UI
+  at `https://192.168.10.69/` with primary model selected.
 
 ### Changed
-- `docs/09-roadmap.md` / `SPECIFICATIONS.md` / `docs/04-models.md`:
-  v0.2 checklist complete on the reference box — primary pull,
-  healthcheck 8/0, benchmark ~18 gen tok/s (2026-08-01).
+- `docs/09-roadmap.md` / `SPECIFICATIONS.md` / `docs/04-models.md` /
+  `docs/06-networking-and-security.md`: v0.2 exit criterion met on the
+  reference box — primary pull, healthcheck 8/0, ~18 gen tok/s, LAN UI
+  (2026-08-01).
 
 ### Fixed
 - `deploy/install.sh`: chown `/data/models` to the Ollama service user
