@@ -1,5 +1,15 @@
 # guasimo
 
+[![Version](https://img.shields.io/badge/version-0.2.2-blue)](https://github.com/hrodrig/guasimo/releases)
+[![Release](https://img.shields.io/github/v/release/hrodrig/guasimo)](https://github.com/hrodrig/guasimo/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![Shell](https://img.shields.io/badge/shell-bash-4EAA25?logo=gnubash&logoColor=white)](https://www.gnu.org/software/bash/)
+[![Ubuntu](https://img.shields.io/badge/Ubuntu-26.04-E95420?logo=ubuntu&logoColor=white)](https://ubuntu.com/)
+[![CUDA](https://img.shields.io/badge/CUDA-RTX%203060-76B900?logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-zone)
+[![gghstats clones](https://gghstats.hermesrodriguez.com/api/v1/badge/hrodrig/guasimo?metric=clones)](https://gghstats.hermesrodriguez.com/hrodrig/guasimo)
+
+**Repo:** [github.com/hrodrig/guasimo](https://github.com/hrodrig/guasimo) · **Releases:** [Releases](https://github.com/hrodrig/guasimo/releases)
+
 **G**raphical **U**tility for **A**I **S**erver **I**nference of **M**odels,
 **O**pen-source.
 
