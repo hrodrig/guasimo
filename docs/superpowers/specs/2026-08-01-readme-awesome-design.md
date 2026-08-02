@@ -1,7 +1,7 @@
 # Design: Awesome README for guasimo
 
 **Date:** 2026-08-01  
-**Status:** draft — awaiting user review  
+**Status:** approved (2026-08-01) — implemented in README  
 **Scope:** rewrite `README.md` only (no install/script changes)  
 **Language:** English (aligned with `docs/`)
 
@@ -11,6 +11,7 @@
 |-------|--------|
 | Audience | Mix: GitHub visitor first, then operator (landing corta) |
 | Hero | Single real screenshot: `docs/assets/open-webui-lan-192-168-10-69.png` |
+| Hardware photo | Real reference tower: `docs/assets/guasimo-workstation-tower.png` |
 | Length | ~150–200 lines; deep detail stays in `docs/` / `SPECIFICATIONS.md` |
 | Approach | Landing corta (not gghstats-clone, not runbook-first) |
 
