@@ -8,13 +8,19 @@
 [![CUDA](https://img.shields.io/badge/CUDA-RTX%203060-76B900?logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-zone)
 [![gghstats clones](https://gghstats.hermesrodriguez.com/api/v1/badge/hrodrig/guasimo?metric=clones)](https://gghstats.hermesrodriguez.com/hrodrig/guasimo)
 
-**Repo:** [github.com/hrodrig/guasimo](https://github.com/hrodrig/guasimo) · **Releases:** [Releases](https://github.com/hrodrig/guasimo/releases)
+**Repo:** [github.com/hrodrig/guasimo](https://github.com/hrodrig/guasimo) · **Releases:** [GitHub Releases](https://github.com/hrodrig/guasimo/releases) · **Spec:** [SPECIFICATIONS.md](SPECIFICATIONS.md) · **Docs:** [docs/00-index.md](docs/00-index.md) · **Changelog:** [CHANGELOG.md](CHANGELOG.md)
 
 ![Open WebUI on the guasimo LAN workstation](docs/assets/open-webui-lan-192-168-10-69.png)
 
 **G**raphical **U**tility for **A**I **S**erver **I**nference of **M**odels, **O**pen-source.
 
 A self-hosted local LLM coding workstation. One command takes a fresh Ubuntu 26.04 box to a browser chat UI and an OpenAI-compatible API for your IDE. Models stay on the machine — nothing leaves the box.
+
+**Related tools (same maintainer):**
+- **[pgwd](https://github.com/hrodrig/pgwd)** — PostgreSQL connection watchdog ([live traffic](https://gghstats.hermesrodriguez.com/hrodrig/pgwd); deploy: [pgwd-selfhosted](https://github.com/hrodrig/pgwd-selfhosted))
+- **[gghstats](https://github.com/hrodrig/gghstats)** — GitHub repo traffic beyond 14 days ([live demo](https://gghstats.hermesrodriguez.com); deploy: [gghstats-selfhosted](https://github.com/hrodrig/gghstats-selfhosted))
+- **[kzero](https://github.com/hrodrig/kzero)** — bastion-first declarative workload reset ([live traffic](https://gghstats.hermesrodriguez.com/hrodrig/kzero); deploy: [kzero-selfhosted](https://github.com/hrodrig/kzero-selfhosted))
+- **[groot](https://github.com/hrodrig/groot)** — Kubernetes diagnostics archive ([live traffic](https://gghstats.hermesrodriguez.com/hrodrig/groot); deploy: [groot-selfhosted](https://github.com/hrodrig/groot-selfhosted))
 
 ## Table of contents
 
