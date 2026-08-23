@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 # scripts/pull-models.sh — pull named models into /bulk and link to /data.
 #
-# Usage: scripts/pull-models.sh {primary|secondary|large|gemma|deepseek|all|<name>}
+# Usage: scripts/pull-models.sh {primary|secondary|thinking|gemma|deepseek|all|<name>}
 #
-# - primary   : Qwen2.5-Coder-14B-Instruct (Q4_K_M), the daily driver
-# - secondary : Qwen2.5-Coder-7B-Instruct  (Q4_K_M), fast path
-# - large     : Qwen2.5-Coder-32B-Instruct (Q4_K_M), partial offload
+# - primary   : Qwen3.8-27B-Instruct (qwen3.8:27b, ~18 GB), the daily driver.
+#               Apache 2.0, dense 27B, vision-language, 256K ctx, thinking on
+#               by default. Partial offload on the RTX 3060 (12 GB).
+# - secondary : Qwen2.5-Coder-7B-Instruct  (Q4_K_M, ~5 GB), fast path. Full VRAM.
+# - thinking  : same Qwen3.8-27B base as primary, with thinking forced on via
+#               Modelfile (see config/ollama/Modelfile.qwen3-27b-thinking).
+#               Reuses the primary download; no extra pull weight.
 # - gemma     : Gemma 4 12B (Ollama gemma4:12b) — agents / tools
 # - deepseek  : DeepSeek-Coder-V2-Lite (deepseek-coder-v2:lite) — backup coder
 # - all       : primary + secondary
@@ -38,9 +42,12 @@ WHAT="${1:-primary}"
 
 # Manifest: nickname → ollama pull name. Add new entries here, not in the body.
 declare -A MODELS=(
-  [primary]="qwen2.5-coder:14b-instruct-q4_K_M"
+  [primary]="qwen3.8:27b"
   [secondary]="qwen2.5-coder:7b-instruct-q4_K_M"
-  [large]="qwen2.5-coder:32b-instruct-q4_K_M"
+  # thinking reuses the primary base; it is the same GGUF, just a different
+  # Modelfile alias (see config/ollama/Modelfile.qwen3-27b-thinking). Listed
+  # in the manifest so the case branch and benchmark can resolve it.
+  [thinking]="qwen3.8:27b"
   [gemma]="gemma4:12b"
   [deepseek]="deepseek-coder-v2:lite"
 )
@@ -50,7 +57,7 @@ TARGETS=()
 case "${WHAT}" in
   primary)   TARGETS=("${MODELS[primary]}") ;;
   secondary) TARGETS=("${MODELS[secondary]}") ;;
-  large)     TARGETS=("${MODELS[large]}") ;;
+  thinking)  TARGETS=("${MODELS[thinking]}") ;;
   gemma|gemma4) TARGETS=("${MODELS[gemma]}") ;;
   deepseek|deepseek-lite) TARGETS=("${MODELS[deepseek]}") ;;
   all)       TARGETS=("${MODELS[primary]}" "${MODELS[secondary]}") ;;
@@ -67,16 +74,18 @@ if ! curl -fsS --max-time 3 http://127.0.0.1:11434/api/tags >/dev/null; then
   exit 2
 fi
 
-# Pre-flight: disk budget. Each model is roughly (params_in_B) GB on disk.
+# Pre-flight: disk budget. Each model is roughly its real Q4_K_M
+# weight, in GB. Conservative defaults for unknown tags.
 EST_GB=0
 for t in "${TARGETS[@]}"; do
   case "$t" in
-    *14b*)     EST_GB=$((EST_GB + 9)) ;;
-    *7b*)      EST_GB=$((EST_GB + 5)) ;;
-    *32b*)     EST_GB=$((EST_GB + 20)) ;;
-    *gemma4*|*12b*) EST_GB=$((EST_GB + 8)) ;;
-    *deepseek*) EST_GB=$((EST_GB + 9)) ;;
-    *)         EST_GB=$((EST_GB + 10)) ;;
+    *qwen3.8*|*qwen3-8*)  EST_GB=$((EST_GB + 18)) ;;  # qwen3.8:27b Q4_K_M
+    *14b*)               EST_GB=$((EST_GB + 9)) ;;   # legacy Qwen2.5-Coder-14B
+    *7b*)                EST_GB=$((EST_GB + 5)) ;;   # Qwen2.5-Coder-7B
+    *32b*)               EST_GB=$((EST_GB + 20)) ;;  # legacy Qwen2.5-Coder-32B
+    *gemma4*|*12b*)      EST_GB=$((EST_GB + 8)) ;;   # Gemma 4 12B
+    *deepseek*)          EST_GB=$((EST_GB + 9)) ;;   # DeepSeek-Coder-V2-Lite
+    *)                   EST_GB=$((EST_GB + 10)) ;;  # unknown tag, conservative
   esac
 done
 FREE_GB=$(df -BG --output=avail "${BULK_DIR}" | tail -1 | tr -dc '0-9')
