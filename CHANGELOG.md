@@ -306,7 +306,67 @@ Modelfile alias `qwen3-27b` is created automatically by
 `scripts/install-aliases.sh` at the end of `pull-models.sh`.
 
 [Unreleased]: https://github.com/hrodrig/guasimo/compare/v0.3.1...HEAD
+
+## [0.3.1] - 2026-08-23
+
+Hotfix: `qwen3.8:27b` requires Ollama v0.32.12 or newer (the model
+landed the same day the 0.32.x line shipped, 2026-08-14). Fresh
+installs from v0.3.0 hit HTTP 412 on the first pull because the
+v0.2.x-era `OLLAMA_VERSION=0.5.7` pin was too old.
+
+### Fixed
+- `deploy/install.sh`: bumped `OLLAMA_VERSION` from `0.5.7` to
+  `0.32.14`. The install now requires Ollama 0.32.12+ from apt
+  (or the upstream install script as a fallback). Comment block
+  explains why the line is 0.32.14 and not the 0.32.12 minimum.
+- `config/ollama/Modelfile.*` (all five: `coder-14b`, `coder-7b`,
+  `coder-32b`, `qwen3-27b`, `qwen3-27b-thinking`): removed
+  `PARAMETER keep_alive 10m` / `5m`. Ollama 0.32.x dropped
+  `keep_alive` from the supported Modelfile PARAMETER list, so
+  `ollama create -f …` now rejects the recipe with
+  `Error: unknown parameter 'keep_alive'`. The retention timeout
+  is now a server-side setting: `OLLAMA_KEEP_ALIVE=10m` in
+  `/etc/systemd/system/ollama.service.d/override.conf` (set by
+  `deploy/install.sh`). Per-request override is still available via
+  the API's `keep_alive` field. The Modelfiles carry a comment
+  block in place of the removed line so the rationale is grep-able.
+- `docs/08-troubleshooting.md`: new section "Symptom: `Error:
+  unknown parameter 'keep_alive'`" with the fix; the existing
+  "Symptom: pull model manifest: 412" entry was corrected to point
+  at the new `.tar.zst` install path (Ollama no longer publishes a
+  `.deb`).
+
+### Upgrade path for existing boxes (not in the install script)
+
+The upstream install script is the supported upgrade path (Ollama
+publishes a `.tar.zst` of the binary, not a `.deb`):
+
+    ollama --version
+    sudo systemctl stop ollama
+    sudo rm -rf /usr/lib/ollama               # cleanup recommended by Ollama docs
+    curl -fsSL https://ollama.com/install.sh | OLLAMA_VERSION=0.32.14 sh
+    sudo systemctl start ollama
+    ollama --version    # should be 0.32.14 (or newer)
+    ./scripts/pull-models.sh primary
+    ./scripts/benchmark.sh primary
+
+After the upgrade, re-run the guasimo install so the override.conf
+gets the new `OLLAMA_KEEP_ALIVE` line, then re-create the Modelfile
+aliases (which will now succeed because the recipes no longer carry
+the rejected `PARAMETER keep_alive`):
+
+    sudo ./deploy/install.sh                  # idempotent, updates override.conf
+    ./scripts/install-aliases.sh             # creates coder-14b, qwen3-27b, …
+
+The install script preserves
+`/etc/systemd/system/ollama.service.d/override.conf` (guasimo's drop-in
+for `OLLAMA_LLAMA_SERVER`, `OLLAMA_HOST`, `OLLAMA_MODELS`, `OLLAMA_DEBUG`,
+`OLLAMA_KEEP_ALIVE`). Models in `/data/models` are not affected by
+the binary upgrade; the Modelfile alias `qwen3-27b` is created
+automatically by `scripts/install-aliases.sh`.
+
 [0.3.1]: https://github.com/hrodrig/guasimo/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/hrodrig/guasimo/compare/v0.2.2...v0.3.0
 [0.3.0]: https://github.com/hrodrig/guasimo/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/hrodrig/guasimo/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/hrodrig/guasimo/compare/v0.2.0...v0.2.1
