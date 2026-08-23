@@ -210,7 +210,54 @@ server-side `OLLAMA_CONTEXT_LENGTH` env still applies to new loads.
 For brainstorming / doc writing the same Modelfile can be invoked with
 override parameters via the API. Defaults are conservative.
 
-## How to add a new model
+## Quantisation trade-offs (operator reference)
+
+The Q4_K_M tag is the default in `scripts/pull-models.sh primary` because
+it is the right sweet spot for the RTX 3060 (12 GB VRAM) + 32 GB RAM
+reference box. Other quant tags of `qwen3.8:27b` exist on the Ollama
+library for operators with different hardware. Pick by available RAM
+and how much you want fully on GPU, not by the quality delta alone —
+the quality differences across the table are < 5 %, and partial-offload
+speed depends on how much fits in VRAM and on disk throughput, not on
+the quant.
+
+| Quant       | Approx weight | 12 GB VRAM?                       | 32 GB RAM comfortable? | Quality vs FP16 |
+|-------------|---------------|-----------------------------------|------------------------|-----------------|
+| **Q4_K_M**  | ~18 GB        | Partial offload (~6 GB to CPU)    | Yes                    | ~95 %           |
+| Q5_K_M      | ~21 GB        | Partial offload (~9 GB to CPU)    | Tight                  | ~96.5 %         |
+| Q6_K        | ~24 GB        | All offloaded (no VRAM use)        | Tight                  | ~98 %           |
+| Q8_0        | ~32 GB        | All offloaded                     | Very tight             | ~99 %           |
+
+The Ollama library also lists MLX and BF16 quant tags; those only
+apply to Apple Silicon and are explicitly out of scope for guasimo v1
+(`docs/01-architecture.md` → *What this architecture explicitly
+excludes*).
+
+To switch the default quant, edit the `[primary]` entry in
+`scripts/pull-models.sh` and `scripts/benchmark.sh` to point at the
+desired tag (e.g. `qwen3.8:27b-q5_K_M`), and update the `FROM` line
+in `config/ollama/Modelfile.qwen3-27b` (and the thinking variant) to
+match. Re-run `scripts/install-aliases.sh` to recreate the alias
+against the new base. The disk-budget estimation in `pull-models.sh`
+will pick up the new tag via the `*qwen3.8*` case branch as long as
+the tag substring still contains `qwen3.8`.
+
+Hardware targets (rule-of-thumb; validate on your own box):
+
+- **12 GB VRAM + 32 GB RAM** (guasimo reference): Q4_K_M. ~3-5 gen
+  tok/s in steady state; this is the default in v0.3.0.
+- **16 GB VRAM + 32 GB RAM**: Q5_K_M fits with a small VRAM slice;
+  ~25 % more weight, marginal quality gain. Worth it for inline
+  completions where the partial-offload hits harder.
+- **24 GB VRAM + 48 GB RAM**: Q6_K fits fully on GPU; ~33 % more
+  weight than Q4, ~3 % quality gain. Best per-GB-of-quality choice
+  for an upgrade path.
+- **24 GB VRAM + 64 GB RAM**: Q8_0 fits fully on GPU; ~80 % more
+  weight than Q4, marginal quality delta at the inference temperature
+  this Modelfile uses. Skip unless the operator is sensitive to
+  quantisation noise on long context.
+
+
 
 1. Drop the GGUF into `/bulk/models/<vendor>-<name>-<size>-<quant>.gguf`.
 2. Add a `Modelfile.<name>` in `config/ollama/` that points at it.
@@ -220,6 +267,17 @@ override parameters via the API. Defaults are conservative.
 
 This is intentionally a 5-step process; the friction prevents stale
 models from accumulating.
+
+## How to add a new model
+
+1. Drop the GGUF into `/bulk/models/<vendor>-<name>-<size>-<quant>.gguf`.
+2. Add a `Modelfile.<name>` in `config/ollama/` that points at it.
+3. `ollama create <name> -f config/ollama/Modelfile.<name>`.
+   (`scripts/install-aliases.sh` will pick up the new Modelfile
+   automatically on the next `pull-models.sh` run; re-running it
+   standalone also recreates the alias.)
+4. Verify with `./scripts/benchmark.sh <name>`.
+5. Document in `docs/04-models.md` (this file) under a new heading.
 
 ## What we explicitly do not pull
 
