@@ -1,40 +1,35 @@
 # Whitelist-style .gitignore.
 #
-# Everything is ignored by default. Anything you want tracked must be
-# added with `!` below. This keeps the repo immune to accidental commits
-# of editor swap files, OS metadata, downloaded blobs, secrets, and
-# transient artefacts. The trade-off is explicit: if a new file type
-# appears in the repo, you must whitelist it intentionally.
+# Everything is ignored by default. Only the paths re-allowed below are
+# tracked. To add a new file or directory, add a `!` rule here first —
+# there is no implicit allow-list.
 #
-# Pattern (verified working pattern, see git's gitignore docs):
+# Rule of thumb:
+#   *            ignore every name at every depth (still descends)
+#   .*           ignore every dotfile
+#   !/file       re-allow a specific file at the repo root
+#   !/dir/       re-allow a directory entry at the root
+#   !/dir/**     re-allow everything inside that directory, recursively
 #
-#   *              # ignore every name at every depth, but still descend
-#   .*             # ignore every dotfile at every depth
-#   !/<file>       # re-allow a specific file at the repo root
-#   !/<dir>/       # re-allow a specific directory entry at the root
-#   !/<dir>/**     # re-allow everything inside that directory recursively
-#
-# Do NOT use `/*` as the top-level blacklist: it anchors to the root
-# and prevents git from descending into directories to evaluate the
-# whitelist, which silently re-ignores everything.
+# Do NOT use `/*` as the top-level ignore: it anchors at the root and
+# stops git from descending into subdirectories, so the `!` rules below
+# can never match and everything stays hidden.
 
-# --- Blacklist ---------------------------------------------------------
+# --- Ignore everything --------------------------------------------------
 
-# Ignore every name at every depth. Descends into directories (so
-# `!/dir/**` rules below can match), but matches names.
 *
-
-# Ignore dotfiles at every depth.
 .*
 
-# --- Whitelist: top-level files ----------------------------------------
+# --- Re-allow: root files ----------------------------------------------
 
 !/LICENSE
 !/README.md
 !/SPECIFICATIONS.md
 !/CHANGELOG.md
+!/.gitignore
+!/.editorconfig
 
-# --- Whitelist: top-level directories ----------------------------------
+# --- Re-allow: tracked directories -------------------------------------
 
 !/config/
 !/config/**
@@ -54,28 +49,22 @@
 !/models/
 !/models/**
 
-# --- Whitelist: dotfiles at the root -----------------------------------
+# --- Re-ignore inside whitelisted directories --------------------------
+# Last matching pattern wins, so these close holes opened by !/dir/**.
 
-!/.gitignore
-!/.editorconfig
-
-# --- Re-ignore: heavy / secret / transient inside whitelist -------------
-# Last matching pattern wins, so these close the holes opened by !/dir/**
-
+# Model weights and binary blobs — never tracked.
 *.gguf
-*.bin
 *.ggml
+*.bin
 *.safetensors
 
-# macOS Finder metadata. The whitelist-style re-allows these inside
-# !/<dir>/** so they sneak in unless listed explicitly. The `**/`
-# covers the top-level whitelist (config, deploy, docs, scripts,
-# tests) AND every subdirectory they re-allow (config/ollama/,
-# docs/assets/, …).
-**/.DS_Store
-
+# Secrets.
 config/**/.env
 config/**/.env.*
 
+# macOS metadata.
+**/.DS_Store
+
+# Benchmark output is transient; keep only the placeholder.
 tests/bench-results/**
 !tests/bench-results/.gitkeep
