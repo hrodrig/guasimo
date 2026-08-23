@@ -41,9 +41,15 @@ without operator intervention.
 |-----------------|-------------------------------------------------------------|-------------------------------------|
 | llama.cpp       | Tensor maths, KV cache, sampling, prompt eval               | API, model discovery                |
 | Ollama         | Model lifecycle, Modelfiles, OpenAI-compatible API surface  | Tokenisation tuning                 |
-| Open WebUI     | Chat history, RAG over uploaded files, multi-user sessions  | Inference                           |
+| Open WebUI     | Chat history, RAG over uploaded files, multimodal input (image paste, file upload)  | Inference |
 | nginx           | TLS termination, single entry point on 443                  | Auth (delegated to Open WebUI)      |
 | systemd         | Process supervision, restart policy, dependency ordering    | Config management                   |
+
+The v0.3.0 primary model (`qwen3.8:27b`, vision-language) adds a
+multimodal path: image inputs from the browser reach Open WebUI,
+which forwards them to Ollama, which in turn hands them to the GGUF
+model. The data flow on the right of the diagram is unchanged;
+multimodal is an additional content type, not a new layer.
 
 ## Data flow (chat completion request)
 

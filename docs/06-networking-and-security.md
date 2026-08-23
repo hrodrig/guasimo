@@ -34,7 +34,11 @@ This means:
 
 Reference box at `192.168.10.69`: browser on another LAN host opened
 `https://192.168.10.69/` (self-signed → "Not secure" warning expected),
-Open WebUI with `qwen2.5-coder:14b-instruct-q4_K_M` selected.
+Open WebUI with the v0.2.x primary `qwen2.5-coder:14b-instruct-q4_K_M`
+selected. The v0.3.0 primary (`qwen3-27b`, alias for `qwen3.8:27b`)
+is selected through the same Open WebUI model picker; the chat
+endpoint, the `OPENAI_API_BASE_URL`, and the TLS termination do not
+change.
 
 ![Open WebUI over LAN at 192.168.10.69](assets/open-webui-lan-192-168-10-69.png)
 
@@ -62,13 +66,13 @@ guasimo box. From a Mac / laptop on the LAN:
 
 ### Hermes Agent (Nous Research)
 
-Hermes talks OpenAI-compat. Use a **custom** endpoint (not “Local :1234”):
+Hermes talks OpenAI-compat. Use a **custom** endpoint (not "Local :1234"):
 
     hermes model
     # Custom endpoint
     # API base URL: http://127.0.0.1:11434/v1
     # API key: ollama   (or blank)
-    # Model: qwen2.5-coder:14b-instruct-q4_K_M
+    # Model: qwen3-27b
 
 Or `~/.hermes/config.yaml`:
 
@@ -76,26 +80,43 @@ Or `~/.hermes/config.yaml`:
 model:
   provider: custom
   base_url: http://127.0.0.1:11434/v1
-  default: qwen2.5-coder:14b-instruct-q4_K_M
+  default: qwen3-27b                  # v0.3.0 primary Modelfile alias
   context_length: 65536
-  ollama_num_ctx: 65536   # required by Hermes v0.19+ for tool use
+  ollama_num_ctx: 65536               # required by Hermes v0.19+ for tool use
 agent:
-  reasoning_effort: none  # coder instruct ≠ thinking model
+  reasoning_effort: none              # coder instruct ≠ thinking model
 ```
 
-**Context floor:** Hermes Agent rejects runtime context below **64 000**.
-GGUF metadata may still show 32 768 — ignore that for Hermes; set both
-`context_length` and `ollama_num_ctx` (and optionally
-`OLLAMA_CONTEXT_LENGTH` / a Modelfile `num_ctx`). Same model. Details:
+The `default` model name points at the Modelfile alias created by
+`scripts/install-aliases.sh`, not the raw `qwen3.8:27b` Ollama tag.
+Both names work; the alias is what the system prompt and sampling
+defaults are baked into.
+
+**Context floor:** Hermes Agent rejects runtime context below **64 000**.
+The Modelfile ships with `num_ctx 32768`; raise it per-request via
+`ollama_num_ctx` (and the server-side `OLLAMA_CONTEXT_LENGTH` env if
+you want it persistent across model loads). GGUF metadata may still
+show 32 768 — ignore that for Hermes. Details:
 `docs/08-troubleshooting.md` → *Hermes Agent: context below 64K*.
 
-**Thinking / HTTP 400:** if Ollama returns
-`does not support thinking`, keep the same model and set
-`agent.reasoning_effort: none` (see troubleshooting).
+**Thinking / HTTP 400:** if Ollama returns `does not support thinking`,
+keep the same model and set `agent.reasoning_effort: none` (see
+troubleshooting). The v0.3.0 primary has thinking on by default at
+the model level; the `qwen3-27b` Modelfile alias uses the non-thinking
+chat template, which is what Hermes expects.
 
-**Speed on RTX 3060:** Hermes’ 64K floor + 14B is slow. Prefer
-`./scripts/pull-models.sh secondary` (7B coder), `gemma`, or `deepseek`
-for agent loops; keep `primary` for WebUI / IDE at 8K.
+**Speed on RTX 3060:** Hermes' 64K floor + 27B partial offload is
+**slow** (~2-4 tok/s). For agent loops prefer the secondary
+(`qwen2.5-coder:7b-instruct-q4_K_M`, full VRAM, ~25-30 tok/s), the
+thinking alias only when you need the audit trail, or `gemma` /
+`deepseek` for non-Qwen paths. Keep `primary` (qwen3-27b) for review
+and refactor where quality matters more than latency.
+
+**Multimodal:** the v0.3.0 primary accepts image input. The Open
+WebUI UI forwards image attachments to the model; the OpenAI-compat
+API exposes them as `image_url` content parts. Out of the LAN surface
+this is fine (LAN only, single user); see "Logging hygiene" below for
+how image attachments are kept off `/var/log/guasimo/`.
 
 Upstream: [Hermes providers](https://hermes-agent.nousresearch.com/docs/integrations/providers),
 [Ollama ↔ Hermes](https://docs.ollama.com/integrations/hermes).
