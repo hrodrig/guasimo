@@ -252,7 +252,56 @@ Initial scaffolding. A new operator can read `SPECIFICATIONS.md` and
 - Firewall is **not** opened automatically. `scripts/open-firewall.sh`
   is the explicit, audited path.
 
-[Unreleased]: https://github.com/hrodrig/guasimo/compare/v0.3.0...HEAD
+## [Unreleased]
+
+### Added
+- (none yet)
+
+### Changed
+- (none yet)
+
+### Fixed
+- (none yet)
+
+### Removed
+- (none yet)
+
+## [0.3.1] - 2026-08-23
+
+Hotfix: `qwen3.8:27b` requires Ollama v0.32.12 or newer (the model
+landed the same day the 0.32.x line shipped, 2026-08-14). Fresh
+installs from v0.3.0 hit HTTP 412 on the first pull because the
+v0.2.x-era `OLLAMA_VERSION=0.5.7` pin was too old.
+
+### Fixed
+- `deploy/install.sh`: bumped `OLLAMA_VERSION` from `0.5.7` to
+  `0.32.14`. The install now requires Ollama 0.32.12+ from apt
+  (or the upstream `.deb` as a fallback). Comment block explains
+  why the line is 0.32.14 and not the 0.32.12 minimum.
+- `docs/08-troubleshooting.md`: new section "Symptom: pull model
+  manifest: 412: requires a newer version of Ollama" with the
+  on-the-box upgrade path (stop ollama → dpkg the latest `.deb`
+  from `https://ollama.com/download/` → restart → re-pull) and the
+  explanation of why the v0.3.0 pin was wrong.
+
+### Upgrade path for existing boxes (not in the install script)
+
+    ollama --version
+    sudo systemctl stop ollama
+    curl -fsSL https://ollama.com/download/ollama-linux-amd64.deb \
+      -o /tmp/ollama.deb
+    sudo dpkg -i /tmp/ollama.deb
+    sudo systemctl start ollama
+    ollama --version    # should be >= 0.32.12
+    ./scripts/pull-models.sh primary
+    ./scripts/benchmark.sh primary
+
+Models in `/data/models` are not affected by the binary upgrade; the
+Modelfile alias `qwen3-27b` is created automatically by
+`scripts/install-aliases.sh` at the end of `pull-models.sh`.
+
+[Unreleased]: https://github.com/hrodrig/guasimo/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/hrodrig/guasimo/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/hrodrig/guasimo/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/hrodrig/guasimo/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/hrodrig/guasimo/compare/v0.2.0...v0.2.1
