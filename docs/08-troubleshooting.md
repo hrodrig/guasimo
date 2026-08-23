@@ -513,6 +513,42 @@ Models are too big or too many. Audit:
 Drop unused models with `ollama rm` and manually `rm` the underlying blob
 in `/bulk/models/`.
 
+## Symptom: `pull model manifest: 412: requires a newer version of Ollama`
+
+The v0.3.0 primary (`qwen3.8:27b`) was published the same day Ollama
+shipped **v0.32.12** (2026-08-14). Older Ollama versions refuse the
+pull with HTTP 412. This affects fresh installs done before the
+pin in `deploy/install.sh` was bumped (v0.3.1), and existing boxes
+that pre-date the new model.
+
+### Fix on an existing box
+
+    ollama --version    # confirm the running version
+    sudo systemctl stop ollama
+    curl -fsSL https://ollama.com/download/ollama-linux-amd64.deb \
+      -o /tmp/ollama.deb
+    sudo dpkg -i /tmp/ollama.deb
+    sudo systemctl start ollama
+    ollama --version    # should now be >= 0.32.12
+
+The `.deb` URL is always the latest release; the operator does not need
+to track Ollama version numbers manually. The `OLLAMA_VERSION` env
+override on the install side is the *minimum acceptable line* — apt or
+the upstream script will pick whatever is newer.
+
+### Fix on a fresh install
+
+`deploy/install.sh` (v0.3.1+) now pins `OLLAMA_VERSION=0.32.14` as the
+minimum acceptable line. A box built from a v0.3.1-or-newer install will
+not hit this symptom unless apt is misconfigured.
+
+### Why the pin was wrong in v0.3.0
+
+The v0.2.x line pinned `OLLAMA_VERSION=0.5.7`, which was the latest at
+the time. The 0.32.x generation (a faster release cadence, multimodal
+support, MTP speculative decoding) shipped in the meantime and
+`qwen3.8:27b` requires it. v0.3.1 corrects the pin.
+
 ## Symptom: low tokens/s with qwen3.8:27b on the RTX 3060 (12 GB)
 
 The v0.3.0 primary is `qwen3.8:27b` (~18 GB at Q4_K_M). The RTX 3060

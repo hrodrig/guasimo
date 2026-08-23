@@ -10,7 +10,12 @@ set -euo pipefail
 # Pinned versions
 # ---------------------------------------------------------------------------
 LLAMA_CPP_REF="${LLAMA_CPP_REF:-b4568}"              # llama.cpp git SHA / tag
-OLLAMA_VERSION="${OLLAMA_VERSION:-0.5.7}"            # fallback if apt < this
+# Ollama: minimum 0.32.12 to support qwen3.8:27b (Aug 2026 multimodal /
+# thinking generation). 0.32.14 adds WebP image transcoding for
+# llama-server and a Qwen renderer fix; the install script tries apt
+# first, then the upstream script as a fallback. The string here is the
+# minimum acceptable line — a newer 0.32.x in apt satisfies it.
+OLLAMA_VERSION="${OLLAMA_VERSION:-0.32.14}"
 # Open WebUI requires Python >=3.11,<3.13 (no 3.13+ yet). Ubuntu 26.04's
 # default python3 is too new, so we venv with python3.12 (see phase 5).
 OPEN_WEBUI_VERSION="${OPEN_WEBUI_VERSION:-0.6.43}"   # open-webui python pkg
