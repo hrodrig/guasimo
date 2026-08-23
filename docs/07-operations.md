@@ -9,13 +9,15 @@ After install, day-to-day operation is one of:
 | Start the stack after a reboot           | `sudo systemctl start guasimo.target`     |
 | Stop the stack                            | `sudo systemctl stop guasimo.target`      |
 | See status of all three services          | `systemctl status 'ollama\|llama-cpp\|open-webui'` |
-| Pull a new model                          | `./scripts/pull-models.sh <nickname\|tag>` (`primary`, `secondary`, `gemma`, `deepseek`, …) |
+| Pull a new model                          | `./scripts/pull-models.sh <nickname\|tag>` (`primary` = `qwen3.8:27b`, `secondary` = `qwen2.5-coder:7b`, `thinking`, `gemma`, `deepseek`, …) |
+| Recreate Modelfile aliases                | `./scripts/install-aliases.sh`           |
 | Drop a model                              | `ollama rm <name>`                       |
 | Re-render the nginx config                | `sudo nginx -t && sudo systemctl reload nginx` |
 | Tail logs                                 | `journalctl -u ollama -u open-webui -f`  |
 | Health check                              | `./scripts/healthcheck.sh`               |
 | Wire Hermes / IDE from another LAN host   | SSH tunnel + `/v1` — see `docs/06-networking-and-security.md` |
 | Hermes "context below 64K" error          | Raise ctx without changing model — `docs/08-troubleshooting.md` |
+| Slow tokens/s on RTX 3060 (12 GB)         | Partial offload is expected; see `docs/08-troubleshooting.md` → *low tokens/s with qwen3.8:27b* |
 
 `guasimo.target` is a systemd target that orders the three services so
 nginx waits for Open WebUI, Open WebUI waits for Ollama, Ollama waits for
@@ -70,8 +72,10 @@ thing an operator needs to learn.
 ## Model rotation
 
 - Models are pulled on demand. There is no automatic re-pull.
-- To swap the primary model, edit `config/ollama/Modelfile.coder-14b`,
-  run `ollama create coder-14b -f ...`, restart Open WebUI.
+- To swap the primary model, edit `config/ollama/Modelfile.qwen3-27b`
+  (or whichever recipe you want to change), run
+  `scripts/install-aliases.sh qwen3.8` to re-create the alias, and
+  restart Open WebUI.
 - To remove a stale model: `ollama rm <name>`. The blob stays in
   `/bulk/models/` until manually deleted; this is intentional, so the
   next `ollama create` is fast.

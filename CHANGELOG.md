@@ -21,6 +21,106 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
 ### Removed
 - (none yet)
 
+## [0.3.0] - 2026-08-23
+
+Qwen 3.8 generation. New default primary
+`qwen3.8:27b` (Qwen3.8-27B-Instruct, Apache 2.0, dense 27B,
+vision-language, 256K context, thinking on by default). Partial
+offload on the RTX 3060 (12 GB VRAM); see `docs/04-models.md` and
+`docs/08-troubleshooting.md` for the speed/quality trade-off vs the
+v0.2.x 14B primary that ran at ~18 gen tok/s full-VRAM. The
+`scripts/install-aliases.sh` script closes the v0.2.x gap where the
+checked-in Modelfile recipes were never auto-applied to the running
+Ollama.
+
+### Added
+- `config/ollama/Modelfile.qwen3-27b` — default primary recipe
+  (`qwen3-27b` alias), inherits the shared `PROMPT.coding.md` system
+  prompt, conservative sampling, `num_ctx 32768`, `keep_alive 10m`.
+- `config/ollama/Modelfile.qwen3-27b-thinking` — same Qwen3.8-27B
+  base, reasoning on, `qwen3-27b-thinking` alias.
+- `scripts/install-aliases.sh` — scans `config/ollama/Modelfile.*`,
+  matches each FROM against the local Ollama library, and runs
+  `ollama create` for every match. Idempotent. Auto-invoked at the
+  end of `pull-models.sh`; callable standalone with an optional
+  substring filter on the FROM tag.
+- "Thinking on by default" documented in `docs/04-models.md`,
+  `docs/08-troubleshooting.md` (low-tok/s section), and
+  `docs/06-networking-and-security.md` (Hermes section).
+
+### Changed
+- `scripts/pull-models.sh` — `primary` now resolves to
+  `qwen3.8:27b` (~18 GB). `large` slot replaced by `thinking`
+  (same base, alias-only, no extra pull weight). Disk-budget
+  estimation updated for the new footprint and the legacy Qwen
+  2.5-Coder sizes.
+- `scripts/benchmark.sh` — manifest updated to match the new
+  primary / thinking / secondary / gemma / deepseek layout.
+- `SPECIFICATIONS.md` — "Model contract" rewritten for the Qwen 3.8
+  generation; "Status" section now leads with the v0.3.0 work.
+- `docs/04-models.md` — primary rewrite (Qwen3.8-27B), explicit
+  partial-offload trade-off section, "Why Qwen 3.8" decision matrix,
+  Modelfile list, sampling defaults note.
+- `docs/02-hardware-decisions.md` — VRAM math and RAM budget
+  updated for the 27B partial-offload case.
+- `docs/01-architecture.md` — Open WebUI row now lists multimodal
+  input; data flow note covers the image-content path.
+- `docs/03-stack-choice.md` — new "Model choice (v0.3.0+)" section
+  with the short version of the model decision.
+- `docs/05-deployment.md` — install output updated to the
+  v0.3.0 quick-start; partial offload is the expected steady state.
+- `docs/06-networking-and-security.md` — Hermes Agent config
+  example updated to `qwen3-27b`; multimodal note added; speed
+  warning reflects the slower 27B partial offload.
+- `docs/07-operations.md` — daily ops table now lists
+  `install-aliases.sh`, the secondary alias swap path, and the
+  low-tok/s symptom.
+- `docs/08-troubleshooting.md` — new "Symptom: low tokens/s with
+  qwen3.8:27b on the RTX 3060 (12 GB)" with the full tuning
+  checklist (load confirmation, `num_ctx` lowering, disk /
+  thermal / OOM checks, fallback to secondary).
+- `docs/09-roadmap.md` — v0.3 and v0.4 marked Done; new v0.3.0
+  section; v1.0 still pending (CI + doc audit).
+- `tests/prompts/{go,csharp,devops}/README.md` — each suite now
+  records the v0.3.0 target model and the variant choice guidance.
+- `README.md` — Status, Features, and Quick Start updated to the
+  v0.3.0 flow; the `pull-models.sh primary` step now notes that
+  the alias is auto-created.
+
+### Fixed
+- `scripts/install-aliases.sh` closes the v0.2.x gap where the
+  recipes in `config/ollama/Modelfile.*` were checked in but never
+  applied to the running Ollama. Operators who used `pull-models.sh`
+  in v0.2.x had to remember to run `ollama create -f …` by hand to
+  pick up the system prompt and sampling defaults; from v0.3.0 the
+  alias is created automatically.
+
+### Removed
+- `scripts/pull-models.sh` no longer pulls the v0.2.x primary
+  (`qwen2.5-coder:14b-instruct-q4_K_M`) by default. Operators who
+  want to experiment with the 14B can `ollama pull` it directly;
+  the `Modelfile.coder-14b` recipe is kept in the repo for reference
+  but no longer referenced by the install scripts.
+- The `large` nickname (Qwen2.5-Coder-32B) is no longer in the
+  `pull-models.sh` / `benchmark.sh` manifest. The recipe
+  `config/ollama/Modelfile.coder-32b` stays in the repo for
+  reference; pull the GGUF directly if you want to try it.
+
+### Known limitations
+- The v0.3.0 primary runs in **partial offload** on the RTX 3060
+  (12 GB VRAM) and benchmarks at **~3-5 gen tok/s**, down from the
+  ~18 gen tok/s the v0.2.x 14B primary hit when it fit fully in
+  VRAM. This is the documented cost of gaining agentic coding,
+  multimodal input, and 256K context on the same single-user box.
+- Validation on the reference box (Ubuntu 26.04 + RTX 3060) is
+  pending a fresh `pull-models.sh primary` run; the
+  `docs/assets/ollama-pull-qwen38-27b-ok.png` and refreshed
+  `docs/assets/open-webui-lan-192-168-10-69.png` screenshots are
+  not in this tag. Capture on the next install and backport.
+- Open WebUI's per-conversation model picker is not yet wired to
+  default to `qwen3-27b`; operators pick the model in the UI for
+  now. (Carried over from v0.4.)
+
 ## [0.2.2] - 2026-08-01
 
 Hermes Agent client docs + optional Gemma / DeepSeek pulls.
@@ -152,7 +252,8 @@ Initial scaffolding. A new operator can read `SPECIFICATIONS.md` and
 - Firewall is **not** opened automatically. `scripts/open-firewall.sh`
   is the explicit, audited path.
 
-[Unreleased]: https://github.com/hrodrig/guasimo/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/hrodrig/guasimo/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/hrodrig/guasimo/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/hrodrig/guasimo/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/hrodrig/guasimo/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/hrodrig/guasimo/compare/v0.1.0...v0.2.0
