@@ -78,11 +78,15 @@ an organic merge rather than a separate tag.
       "reviewer" idea with a single reasoning-on alias; the recipe
       is one line of system-prompt edit away from either behaviour.
 - [x] Wire model picker into Open WebUI's per-conversation default —
-      `DEFAULT_MODELS=qwen3-27b` in `deploy/systemd/open-webui.service`
-      pre-selects the v0.3.0 primary alias in the chat model picker.
+      `DEFAULT_MODELS=coder-14b` in `deploy/systemd/open-webui.service`
+      pre-selects the fast secondary alias in the chat model picker. The
+      primary `qwen3-27b` (and `-thinking`) remains reachable by
+      explicit selection for deep/long-context work; `coder-14b`
+      (33 t/s @ 8K ctx) is the right default for day-to-day Go/Rust/React
+      coding, while the 27B @ 64K is the trade-off for agentic depth.
       Activated on re-run of `deploy/install.sh` (or reinstall of the
-      unit); the alias itself is created by `install-aliases.sh` after
-      `pull-models.sh primary`.
+      unit); the aliases are created by `install-aliases.sh` after
+      `pull-models.sh`.
 
 **Status: merged into v0.3.0.** All v0.4 deliverables have shipped.
 

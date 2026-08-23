@@ -10,14 +10,21 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
 ## [Unreleased]
 
 ### Added
-- `DEFAULT_MODELS=qwen3-27b` in `deploy/systemd/open-webui.service` — the
-  v0.3.0 primary alias is now pre-selected as the Open WebUI chat model
-  default, closing the "wire model picker into the per-conversation
-  default" v0.4 gap. Activated on re-run of `deploy/install.sh`; the
-  `qwen3-27b` alias itself is created by `install-aliases.sh` after
-  `pull-models.sh primary`.
+- `DEFAULT_MODELS` in `deploy/systemd/open-webui.service` — the Open
+  WebUI chat model picker is now pre-selected, closing the "wire model
+  picker into the per-conversation default" v0.4 gap. Settled on
+  `coder-14b` (see Changed below): the fast secondary alias is the
+  right default for day-to-day coding, while the primary `qwen3-27b`
+  stays one explicit selection away for deep/long-context work.
+  Activated on re-run of `deploy/install.sh`; the aliases are created
+  by `install-aliases.sh` after `pull-models.sh`.
 
 ### Changed
+- `DEFAULT_MODELS` switched `qwen3-27b` → `coder-14b` after measuring
+  throughput on the reference box: `coder-14b` runs 33 gen t/s @ 8K ctx
+  (full VRAM) vs `qwen3-27b` at 4 t/s @ 64K. The KV cache is the
+  differentiator, not the model size — `coder-14b` collapses to 7 t/s
+  at 64K ctx. Added a measured-throughput table to `docs/04-models.md`.
 - `docs/04-models.md`, `docs/08-troubleshooting.md`,
   `docs/02-hardware-decisions.md`, `config/ollama/Modelfile.qwen3-27b`:
   corrected the primary's steady-state generation rate to **~4 gen

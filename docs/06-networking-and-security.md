@@ -35,9 +35,10 @@ This means:
 Reference box at `192.168.10.69`: browser on another LAN host opened
 `https://192.168.10.69/` (self-signed → "Not secure" warning expected),
 Open WebUI with the v0.2.x primary `qwen2.5-coder:14b-instruct-q4_K_M`
-selected. The v0.3.0 primary alias (`qwen3-27b`) is now pre-selected as
-the chat model default via `DEFAULT_MODELS=qwen3-27b` in
-`deploy/systemd/open-webui.service`; the chat endpoint, the
+selected. The fast secondary alias `coder-14b` (33 t/s @ 8K ctx) is now
+pre-selected as the chat model default via `DEFAULT_MODELS=coder-14b` in
+`deploy/systemd/open-webui.service`; the primary `qwen3-27b` @ 64K
+stays one explicit selection away for deep work. The chat endpoint, the
 `OPENAI_API_BASE_URL`, and the TLS termination do not change.
 
 ![Open WebUI over LAN at 192.168.10.69](assets/open-webui-lan-192-168-10-69.png)

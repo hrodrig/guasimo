@@ -12,7 +12,7 @@ Environment="DATA_DIR=/data/open-webui"
 Environment="WEBUI_AUTH=false"
 Environment="OPENAI_API_BASE_URL=http://127.0.0.1:11434/v1"
 Environment="OLLAMA_BASE_URL=http://127.0.0.1:11434"
-Environment="DEFAULT_MODELS=qwen3-27b"
+Environment="DEFAULT_MODELS=coder-14b"
 Environment="PORT=8080"
 Environment="HOST=127.0.0.1"
 ExecStart=/opt/guasimo/webui-venv/bin/open-webui serve

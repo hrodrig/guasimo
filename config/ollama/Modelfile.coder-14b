@@ -1,0 +1,26 @@
+# Modelfile.coder-14b — fast primary-speed secondary coding model recipe.
+#
+# Qwen2.5-Coder-14B at Q4_K_M. This is the sweet-spot default for
+# day-to-day Go/Rust/React coding: it fits VRAM at 8K ctx (33 gen t/s
+# measured on the RTX 3060) but still reasons well enough for mid-size
+# refactors, review, and explanation. Use `qwen3-27b` when the task
+# needs 64K context or agentic depth and latency is acceptable.
+#
+# Create with:
+#   ollama create coder-14b -f config/ollama/Modelfile.coder-14b
+
+FROM qwen2.5-coder:14b-instruct-q4_K_M
+
+SYSTEM """$(cat config/ollama/PROMPT.coding.md)"""
+
+PARAMETER temperature        0.2
+PARAMETER top_p              0.95
+PARAMETER top_k              40
+PARAMETER repeat_penalty     1.05
+PARAMETER num_ctx            8192
+PARAMETER stop               "<|im_end|>"
+PARAMETER stop               "<|endoftext|>"
+
+# `keep_alive` is no longer a valid Modelfile PARAMETER in Ollama 0.32.x.
+# Server-side default is set in /etc/systemd/system/ollama.service.d/override.conf
+# via OLLAMA_KEEP_ALIVE=10m.

@@ -49,6 +49,25 @@ want fast chat can drop to `secondary` (Qwen2.5-Coder-7B, full VRAM,
 ~25–30 tok/s) for inline completions and keep `primary` for review
 and refactor where quality matters more than latency.
 
+### Measured throughput on the reference box (2026-08-23)
+
+`num_ctx` is per-request, so the same box serves both uses at once —
+a low-context client (editor/chat) gets fast completions while a
+high-context client (agent) stays full-depth. Measured with a Go
+prompt, `num_predict` 150–200, warm load:
+
+| Model        | `num_ctx` | gen tok/s | prompt tok/s | VRAM | Notes |
+|--------------|-----------|-----------|--------------|------|-------|
+| `coder-7b`   | 8192      | ~30       | —            | full | autocompletion, no depth |
+| `coder-14b`  | 8192      | **33**    | ~1110        | full | fast default for Go/Rust/React |
+| `coder-14b`  | 64K       | 7         | 162          | spill | context > VRAM, forces offload |
+| `qwen3-27b`  | 64K       | **4**     | 35           | spill | agentic depth / long context |
+
+The cliff is the KV cache, not the model: `coder-14b` goes from 33 t/s
+at 8K ctx to 7 t/s at 64K ctx because the 64K cache no longer fits in
+12 GB VRAM. Rule of thumb — **pick the model by task, and don't raise
+`num_ctx` beyond what the task's files actually need.**
+
 ### Validated pull (Ubuntu 26.04 + RTX 3060)
 
 Pull validation for the previous primary (Qwen2.5-Coder-14B) is
