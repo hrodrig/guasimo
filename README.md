@@ -49,7 +49,13 @@ A self-hosted local LLM coding workstation. One command takes a fresh Ubuntu 26.
 - Deferred CUDA build after a fresh driver install (re-run `install.sh` post-reboot)
 - systemd units for the stack; nginx terminates TLS on `:443` (self-signed by default)
 - `healthcheck.sh`, `pull-models.sh`, and `benchmark.sh` for day-one validation
-- Optional model nicknames (e.g. `gemma`, `deepseek`) on top of the primary code model
+- `install-aliases.sh` keeps the Modefile recipes in `config/ollama/` in sync
+  with the running Ollama (auto-runs at the end of `pull-models.sh`)
+- Default primary is Qwen3.8-27B-Instruct (`qwen3.8:27b`): vision-language
+  (text + image), 256K context, Apache 2.0. Partial offload on the RTX 3060
+  (12 GB VRAM) — see `docs/04-models.md` for the speed/quality trade-off.
+- Optional model nicknames: `secondary` (Qwen2.5-Coder-7B, full VRAM),
+  `thinking` (Qwen3.8-27B with reasoning on), `gemma`, `deepseek`
 - Docs-first contract: `SPECIFICATIONS.md` + `docs/` stay authoritative
 
 ## Prerequisites
@@ -66,11 +72,15 @@ On the Ubuntu target machine:
 ```bash
 git clone https://github.com/hrodrig/guasimo.git ~/guasimo
 cd ~/guasimo
-sudo ./deploy/install.sh          # detects GPU, builds llama.cpp, wires systemd
+sudo ./deploy/install.sh              # detects GPU, builds llama.cpp, wires systemd
 ./scripts/healthcheck.sh
-./scripts/pull-models.sh primary  # ~10 GB primary code model
-./scripts/benchmark.sh primary    # validates tokens/s on this box
+./scripts/pull-models.sh primary      # qwen3.8:27b (~18 GB, partial offload on 3060)
+./scripts/benchmark.sh primary        # validates tokens/s on this box
 ```
+
+`pull-models.sh primary` also runs `scripts/install-aliases.sh` at the
+end, so the `qwen3-27b` Modelfile alias is ready to use in Open WebUI
+and the OpenAI-compat API as soon as the pull completes.
 
 Open `https://localhost/` (self-signed cert — accept in the browser).  
 Open WebUI listens on loopback `:8080`; nginx terminates TLS on `:443`.
@@ -103,7 +113,20 @@ Details and trade-offs: [docs/02-hardware-decisions.md](docs/02-hardware-decisio
 
 ## Status
 
-**v0.2.2** — install + primary pull + healthcheck (8/0) + benchmark (~18 gen tok/s) + LAN chat UI validated on Ubuntu 26.04 + RTX 3060 (2026-07-31 / 2026-08-01). Hermes Agent docs; optional `gemma` / `deepseek` pulls. History: [CHANGELOG.md](CHANGELOG.md). Roadmap: [docs/09-roadmap.md](docs/09-roadmap.md).
+**v0.3.0** (in progress) — Qwen 3.8 generation. New default primary
+`qwen3.8:27b` (Qwen3.8-27B-Instruct, Apache 2.0, dense 27B, vision +
+image, 256K context, thinking on by default), with two Modelfile
+aliases: `qwen3-27b` (default chat) and `qwen3-27b-thinking` (reasoning
+on). `scripts/install-aliases.sh` closes the v0.2.x gap where recipes
+were checked in but never auto-applied. Partial offload on the RTX 3060
+(12 GB) — see `docs/04-models.md` for the speed/quality trade-off vs
+the v0.2.x 14B primary that ran at ~18 gen tok/s full-VRAM.
+
+**v0.2.2** — install + primary pull + healthcheck (8/0) + benchmark
+(~18 gen tok/s) + LAN chat UI validated on Ubuntu 26.04 + RTX 3060
+(2026-07-31 / 2026-08-01). Hermes Agent docs; optional `gemma` /
+`deepseek` pulls. History: [CHANGELOG.md](CHANGELOG.md). Roadmap:
+[docs/09-roadmap.md](docs/09-roadmap.md).
 
 ## Documentation
 
