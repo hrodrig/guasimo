@@ -62,14 +62,33 @@ performance.
 
 ## Model contract
 
-- Primary: `qwen2.5-coder:14b-instruct-q4_K_M` (Q4_K_M, ~9 GB).
-- Secondary: `qwen2.5-coder:7b-instruct-q4_K_M` (~5 GB).
-- Large (optional, partial offload):
-  `qwen2.5-coder:32b-instruct-q4_K_M` (~20 GB).
+- Primary: `qwen3.8:27b` (Q4_K_M, ~18 GB). Qwen3.8-27B-Instruct, Apache 2.0,
+  dense 27B, vision-language (text + image), 256K context, thinking on by
+  default. On the RTX 3060 (12 GB) this is partial-offloaded; the operator
+  can force a lower `num_ctx` to keep RAM pressure manageable. See
+  `docs/04-models.md` and `docs/08-troubleshooting.md` for the
+  partial-offload tradeoff.
+- Primary alias: `qwen3-27b`, created from
+  `config/ollama/Modelfile.qwen3-27b` (inherits the shared coding system
+  prompt and conservative sampling defaults). Pulled and aliased by
+  `scripts/pull-models.sh primary`; the alias is set up automatically by
+  `scripts/install-aliases.sh` once the base is in the local library.
+- Secondary: `qwen2.5-coder:7b-instruct-q4_K_M` (~5 GB). Full VRAM on the
+  RTX 3060; the fast path. Unchanged from v0.2.x.
+- Thinking variant: same `qwen3.8:27b` base as primary, with a system
+  prompt that forces explicit step-by-step reasoning. Alias
+  `qwen3-27b-thinking` from
+  `config/ollama/Modelfile.qwen3-27b-thinking`. Use for review, multi-step
+  refactor, and hard bug analysis; not the chat default.
+- Large (LEGACY, partial offload): `qwen2.5-coder:32b-instruct-q4_K_M`
+  (~20 GB). Not pulled by `pull-models.sh` since v0.3.0. Operators who
+  want to experiment with it can `ollama pull qwen2.5-coder:32b-instruct-q4_K_M`
+  directly.
 - Optional nicknames in `scripts/pull-models.sh`:
   `gemma` → `gemma4:12b`; `deepseek` → `deepseek-coder-v2:lite`.
-- These are upstream registry pulls. No fine-tuned variants ship with
-  this project.
+- The primary, thinking, and secondary recipes are upstream Ollama
+  recipes or Modelfile aliases checked in to this repo. No fine-tuned
+  model weights ship with this project.
 
 ## Versions
 
@@ -110,9 +129,16 @@ end-to-end runtime gate that runs against a live box.
 
 ## Status
 
-**v0.2.2** — install, primary pull, healthcheck (8/0), benchmark
-(~18 gen tok/s), and LAN chat UI (`https://192.168.10.69/`) validated
-on Ubuntu 26.04 + RTX 3060 (2026-07-31 / 2026-08-01). Hermes Agent
-client docs; optional `gemma` / `deepseek` model nicknames. See
-`docs/04-models.md`, `docs/06-networking-and-security.md`,
-`docs/09-roadmap.md`.
+**v0.3.0** (in progress) — Qwen 3.8 generation. New default primary
+`qwen3.8:27b` (Qwen3.8-27B-Instruct, Apache 2.0, dense 27B, vision
++ image, 256K context, thinking on by default), with two Modelfile
+aliases: `qwen3-27b` (default chat) and `qwen3-27b-thinking` (reasoning
+on). `scripts/install-aliases.sh` closes the v0.2.x gap where the
+checked-in recipes were never auto-applied. `large` slot becomes a
+legacy reference to Qwen2.5-Coder-32B. See `docs/04-models.md`,
+`docs/08-troubleshooting.md`, `CHANGELOG.md`, and `docs/09-roadmap.md`.
+
+**v0.2.2** (2026-08-01) — install, primary pull, healthcheck (8/0),
+benchmark (~18 gen tok/s), and LAN chat UI (`https://192.168.10.69/`)
+validated on Ubuntu 26.04 + RTX 3060. Hermes Agent client docs;
+optional `gemma` / `deepseek` model nicknames.
