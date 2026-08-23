@@ -67,6 +67,9 @@
 *.ggml
 *.safetensors
 
+# macOS Finder metadata that the !/dir/** whitelist re-allows.
+.DS_Store
+
 config/**/.env
 config/**/.env.*
 

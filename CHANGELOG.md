@@ -284,6 +284,18 @@ v0.2.x-era `OLLAMA_VERSION=0.5.7` pin was too old.
   from `https://ollama.com/download/` → restart → re-pull) and the
   explanation of why the v0.3.0 pin was wrong.
 
+### Removed
+- `config/ollama/Modelfile.coder-14b` and `Modelfile.coder-32b`
+  (legacy recipes for the v0.2.x primary `Qwen2.5-Coder-14B` and
+  the LEGACY `Qwen2.5-Coder-32B`). The v0.3.0 primary
+  `qwen3.8:27b` supersedes both; the 14B recipe was pinned to a base
+  the operator has to pull on demand, and the 32B recipe was
+  already a LEGACY slot. Dropping them keeps
+  `scripts/install-aliases.sh` from re-pulling the 9 GB
+  `qwen2.5-coder:14b-instruct-q4_K_M` GGUF on a clean install.
+  The `Modelfile.coder-7b` recipe (Qwen2.5-Coder-7B-Instruct) stays
+  — it is the v0.3.0 secondary, full VRAM on the RTX 3060.
+
 ### Upgrade path for existing boxes (not in the install script)
 
 The upstream install script is the supported upgrade path (Ollama

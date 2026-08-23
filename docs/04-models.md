@@ -172,13 +172,13 @@ Recipes in this repo (v0.3.0+):
 |---------------------------------------------------|------------------------|--------------------|------------------------|
 | `config/ollama/Modelfile.qwen3-27b`               | `qwen3-27b`            | `qwen3.8:27b`      | Default primary        |
 | `config/ollama/Modelfile.qwen3-27b-thinking`     | `qwen3-27b-thinking`   | `qwen3.8:27b`      | Same base, thinking on |
-| `config/ollama/Modelfile.coder-7b`                | (legacy alias)         | `qwen2.5-coder:7b` | Legacy secondary; usable with `ollama create` manually |
+| `config/ollama/Modelfile.coder-7b`                | `coder-7b`             | `qwen2.5-coder:7b` | Secondary, full VRAM   |
 
-Legacy recipes kept for reference but no longer pulled by the install
-scripts (v0.2.x naming):
-
-- `config/ollama/Modelfile.coder-14b` (Qwen2.5-Coder-14B)
-- `config/ollama/Modelfile.coder-32b` (Qwen2.5-Coder-32B)
+The v0.2.x legacy recipes (`Modelfile.coder-14b` and
+`Modelfile.coder-32b`) were removed in v0.3.1. The 14B was superseded
+by the new primary; the 32B was a LEGACY slot since v0.3.0. Operators
+who still want either can `ollama pull <base>` and
+`ollama create <alias> -f` against a hand-written Modelfile.
 
 All recipes inherit the system prompt `config/ollama/PROMPT.coding.md` so
 behaviour is consistent across sizes.

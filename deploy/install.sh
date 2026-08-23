@@ -422,6 +422,10 @@ else
 fi
 
 mkdir -p /etc/systemd/system/ollama.service.d
+# Backticks in the comment block are backslash-escaped so the heredoc
+# does not try to execute them as command substitution. The variables
+# \${INSTALL_ROOT} and \${DATA_DISK} are intentionally expanded; the
+# escape only affects the backticks.
 cat > /etc/systemd/system/ollama.service.d/override.conf <<EOF
 [Service]
 Environment="OLLAMA_LLAMA_SERVER=${INSTALL_ROOT}/llama-server"
@@ -429,9 +433,10 @@ Environment="OLLAMA_HOST=127.0.0.1:11434"
 Environment="OLLAMA_MODELS=${DATA_DISK}/models"
 Environment="OLLAMA_DEBUG=false"
 # Server-side default for how long a model stays loaded after the last
-# request. Used to be a Modelfile PARAMETER (keep_alive 10m) in v0.2.x;
-# removed from the supported PARAMETER list in Ollama 0.32.x. Per-request
-# override is still available via the API's `keep_alive` field.
+# request. Used to be a Modelfile PARAMETER (\`keep_alive\` 10m) in
+# v0.2.x; removed from the supported PARAMETER list in Ollama 0.32.x.
+# Per-request override is still available via the API's
+# \`keep_alive\` field.
 Environment="OLLAMA_KEEP_ALIVE=10m"
 EOF
 
