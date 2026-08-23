@@ -63,7 +63,7 @@ ground) and reclaim ~1–2 GB of RAM.
 |-----------------------|---------------|----------------------|-----------|-------------|--------------------------------------------------|
 | 7                     | ~5 GB         | ~1 GB                | ~6 GB     | Yes         | Plenty of headroom; v0.3.0 secondary, full VRAM  |
 | 14                    | ~9 GB         | ~1.5 GB              | ~10.5 GB  | Yes         | Legacy primary (v0.2.x); ~1.5 GB free on GPU     |
-| 27                    | ~18 GB        | ~2.5 GB              | ~20.5 GB  | No          | **v0.3.0 primary**: partial offload, ~3-5 tok/s  |
+| 27                    | ~18 GB        | ~2.5 GB              | ~20.5 GB  | No          | **v0.3.0 primary**: partial offload, ~4 gen tok/s @ 64K |
 | 32                    | ~20 GB        | ~2.5 GB              | ~22.5 GB  | No          | LEGACY (v0.3.0+): not pulled by default           |
 
 For v0.3.0 we ship with **partial offload** on the RTX 3060 as the

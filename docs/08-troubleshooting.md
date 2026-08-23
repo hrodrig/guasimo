@@ -614,10 +614,10 @@ VRAM and ran at ~18 gen tok/s, but the v0.3.x primary trades that
 speed for agentic coding, multimodal input, and 256K context.
 
 Expected numbers on the reference box (RTX 3060 + i5-10xxx + 32 GB
-RAM) at 64K `num_ctx`:
+RAM) at 64K `num_ctx`, validated 2026-08-23:
 
-- **Prompt eval**: ~3-5 tok/s
-- **Generation**:   ~3-5 tok/s (the v0.2.x 14B hit ~18 tok/s full VRAM)
+- **Prompt eval**: ~35 tok/s
+- **Generation**:   ~4 tok/s (the v0.2.x 14B hit ~18 tok/s full VRAM)
 
 If you are seeing much less than that, walk down this list:
 

@@ -35,10 +35,13 @@ translation between Go ↔ C#.
 
 The 18 GB Q4_K_M does not fit fully in 12 GB of VRAM. Ollama keeps the
 layers that fit on the GPU and offloads the rest to CPU/RAM. Expect
-**~5 gen tok/s** with a 64K `num_ctx` in steady state (validated on
-the reference box, 2026-08-23; cold load ~3-5 tok/s, warm load
-~5-6 tok/s). Down from the ~18 tok/s the previous v0.2.x primary
-(Qwen2.5-Coder-14B, fully in VRAM) achieved.
+**~4 gen tok/s with a 64K `num_ctx` in steady state** (validated on the
+reference box, 2026-08-23, `num_ctx 65536`, warm load; cold load is
+lower while the model streams in). Dropping `num_ctx` to 4096 does not
+materially change generation rate (~5 t/s), but Hermes Agent's 64K
+context floor is the number that matters. This is down from the
+~18 tok/s the previous v0.2.x primary (Qwen2.5-Coder-14B, fully in
+VRAM) achieved.
 
 This is the documented cost of gaining agentic coding, multimodal
 input, and 256K context on the same single-user box. Operators who

@@ -7,8 +7,9 @@
 # On the RTX 3060 (12 GB VRAM) this 18 GB Q4_K_M does not fit fully in
 # VRAM. Ollama keeps the layers that fit on GPU and offloads the rest
 # to CPU/RAM. Expect noticeably lower tokens/s than the previous primary
-# (~3-5 tok/s partial offload vs ~18 tok/s full VRAM with the 14B). This
-# is the documented tradeoff for gaining agentic coding, multimodal
+# (~4 gen tok/s @ 64K partial offload vs ~18 tok/s full VRAM with the
+# 14B; prompt eval ~35 tok/s). This is the documented tradeoff for
+# gaining agentic coding, multimodal
 # (text + image) input, and 256K context on the same single-user box.
 #
 # Create with (run from the repo root, so the relative path to

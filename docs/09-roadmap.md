@@ -58,13 +58,14 @@ an organic merge rather than a separate tag.
       `pull-models.sh`.
 - [x] Disk-budget estimation in `pull-models.sh` updated to the
       18 GB Q4_K_M footprint of the new primary.
-- [ ] Validate end-to-end on the reference box (Ubuntu 26.04 +
-      RTX 3060): `pull-models.sh primary` completes, the `qwen3-27b`
-      alias answers in Open WebUI, `benchmark.sh primary` reports
-      gen tok/s in the 3-5 range, `healthcheck.sh` still 8/0. Capture
-      `docs/assets/ollama-pull-qwen38-27b-ok.png` and refresh
+- [x] Validate end-to-end on the reference box (Ubuntu 26.04 +
+      RTX 3060, done 2026-08-23): `pull-models.sh primary` completed,
+      the `qwen3-27b` alias answers in Open WebUI,
+      `benchmark.sh primary` reports gen tok/s in range (4 t/s @ 64K
+      `num_ctx`; prompt 35 t/s), `healthcheck.sh` still 8/0.
+- [ ] Capture `docs/assets/ollama-pull-qwen38-27b-ok.png` and refresh
       `docs/assets/open-webui-lan-192-168-10-69.png` with the new
-      model selected.
+      model selected (manual browser capture; pending).
 
 ## v0.4 — Multiple model recipes
 

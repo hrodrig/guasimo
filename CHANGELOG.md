@@ -18,10 +18,21 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
   `pull-models.sh primary`.
 
 ### Changed
-- (none yet)
+- `docs/04-models.md`, `docs/08-troubleshooting.md`,
+  `docs/02-hardware-decisions.md`, `config/ollama/Modelfile.qwen3-27b`:
+  corrected the primary's steady-state generation rate to **~4 gen
+  tok/s @ 64K `num_ctx`** (prompt eval ~35 tok/s), as measured on the
+  reference box 2026-08-23. The earlier "~5 t/s @ 64K" / "3-5 tok/s"
+  figures were optimistic; the re-measured 64K number is what Hermes
+  Agent's 64K context floor actually sees.
 
 ### Fixed
-- (none yet)
+- Reference box validation closed (2026-08-23): `pull-models.sh
+  primary` completed, `qwen3-27b` alias answers in Open WebUI,
+  `benchmark.sh primary` reports 4 gen tok/s @ 64K, `healthcheck.sh`
+  8/0. Only the manual screenshots
+  (`docs/assets/ollama-pull-qwen38-27b-ok.png` and the refreshed
+  `open-webui-lan-192-168-10-69.png`) remain as a follow-up.
 
 ### Removed
 - (none yet)
