@@ -42,11 +42,16 @@ PARAMETER top_p              0.95
 PARAMETER top_k              40
 PARAMETER repeat_penalty     1.0
 
-# Same 32K context as the primary. Thinking traces consume tokens fast;
-# a longer ctx is a false economy on 32 GB RAM with 27B partial offload.
-PARAMETER num_ctx            32768
+# 64K context — the same floor the primary uses. Hermes Agent tool
+# use and the Qwen 3.8 native 256K both push toward a higher floor;
+# 64K is the practical limit on 32 GB RAM with 27B partial-offload.
+# Operators can drop to 8K for inline completions via per-request
+# `num_ctx` overrides.
+PARAMETER num_ctx            65536
 
-# Keep the model loaded 5 minutes — thinking prompts usually take longer
-# and run less often than chat. Cold-load between back-to-back is
-# expensive at 18 GB; this trades a bit of RAM for responsiveness.
-PARAMETER keep_alive         5m
+# `keep_alive` is no longer a valid Modelfile PARAMETER in Ollama 0.32.x
+# (it was removed from the supported PARAMETER list). The server-side
+# default is set in /etc/systemd/system/ollama.service.d/override.conf
+# via OLLAMA_KEEP_ALIVE=10m. Thinking prompts usually run less often than
+# chat; if the per-request default of 10m feels wrong, override via the
+# API's `keep_alive` field.

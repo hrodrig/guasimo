@@ -18,7 +18,7 @@ For a coding LLM on a 32 GB CPU box we want:
 | Size              | 27 B parameters (dense)                     |
 | Quantisation      | Q4_K_M (4-bit, K-quant, medium)             |
 | Disk              | ~18 GB                                      |
-| RAM at inference  | ~22 GB partial-offload (weights + KV cache, 32K ctx) |
+| RAM at inference  | ~25 GB partial-offload (weights + KV cache, 64K ctx) |
 | Context window    | 256 K (we use 8–32 K; longer costs RAM)     |
 | Modality          | Text + image (vision-language)              |
 | Thinking          | On by default; per-request toggle           |
@@ -35,8 +35,9 @@ translation between Go ↔ C#.
 
 The 18 GB Q4_K_M does not fit fully in 12 GB of VRAM. Ollama keeps the
 layers that fit on the GPU and offloads the rest to CPU/RAM. Expect
-**~3–5 gen tok/s** with a 32K `num_ctx`, down from the ~18 tok/s the
-previous v0.2.x primary (Qwen2.5-Coder-14B, fully in VRAM) achieved.
+**~6 gen tok/s** with a 64K `num_ctx` (validated on the reference box,
+2026-08-23), down from the ~18 tok/s the previous v0.2.x primary
+(Qwen2.5-Coder-14B, fully in VRAM) achieved.
 
 This is the documented cost of gaining agentic coding, multimodal
 input, and 256K context on the same single-user box. Operators who
@@ -135,7 +136,7 @@ Pull when you want a second opinion vs Qwen on hard refactors. Alias
 
 | Model family              | Coding (self-host focus) | Self-host on RTX 3060 (12 GB)? | Verdict |
 |---------------------------|--------------------------|--------------------------------|---------|
-| **Qwen3.8-27B**           | High (agentic, multimodal) | Partial offload (Q4 @ 32K)  | **Primary** (v0.3.0+) |
+| **Qwen3.8-27B**           | High (agentic, multimodal) | Partial offload (Q4 @ 64K)  | **Primary** (v0.3.0+) |
 | Qwen2.5-Coder-14B-Instruct| High                     | Yes, full VRAM (Q4 @ 8K)       | Legacy primary (v0.2.x) |
 | Qwen2.5-Coder-7B-Instruct | High / fast              | Yes, full VRAM                 | Secondary |
 | Qwen2.5-Coder-32B-Instruct| High                     | Partial offload (heavy)        | LEGACY (not pulled by default) |
@@ -172,13 +173,13 @@ Recipes in this repo (v0.3.0+):
 |---------------------------------------------------|------------------------|--------------------|------------------------|
 | `config/ollama/Modelfile.qwen3-27b`               | `qwen3-27b`            | `qwen3.8:27b`      | Default primary        |
 | `config/ollama/Modelfile.qwen3-27b-thinking`     | `qwen3-27b-thinking`   | `qwen3.8:27b`      | Same base, thinking on |
-| `config/ollama/Modelfile.coder-7b`                | (legacy alias)         | `qwen2.5-coder:7b` | Legacy secondary; usable with `ollama create` manually |
+| `config/ollama/Modelfile.coder-7b`                | `coder-7b`             | `qwen2.5-coder:7b` | Secondary, full VRAM   |
 
-Legacy recipes kept for reference but no longer pulled by the install
-scripts (v0.2.x naming):
-
-- `config/ollama/Modelfile.coder-14b` (Qwen2.5-Coder-14B)
-- `config/ollama/Modelfile.coder-32b` (Qwen2.5-Coder-32B)
+The v0.2.x legacy recipes (`Modelfile.coder-14b` and
+`Modelfile.coder-32b`) were removed in v0.3.1. The 14B was superseded
+by the new primary; the 32B was a LEGACY slot since v0.3.0. Operators
+who still want either can `ollama pull <base>` and
+`ollama create <alias> -f` against a hand-written Modelfile.
 
 All recipes inherit the system prompt `config/ollama/PROMPT.coding.md` so
 behaviour is consistent across sizes.
@@ -186,14 +187,14 @@ behaviour is consistent across sizes.
 ## Sampling defaults
 
 For coding we want low temperature (deterministic-ish) and top-p clamped
-narrow. Both v0.3.0 Modelfiles (`qwen3-27b` and `qwen3-27b-thinking`)
+narrow. Both v0.3.x Modelfiles (`qwen3-27b` and `qwen3-27b-thinking`)
 use:
 
     temperature        0.2     # 0.6 for the thinking variant
     top_p              0.95
     top_k              40
     repeat_penalty     1.05    # 1.0 for the thinking variant
-    num_ctx            32768   # 8192 for v0.2.x recipes
+    num_ctx            65536   # 8192 for v0.2.x recipes
 
 The `qwen3-27b-thinking` variant loosens `temperature` to 0.6 and
 `repeat_penalty` to 1.0 because thinking traces repeat common
@@ -201,16 +202,65 @@ connectors; tighter penalties truncate the chain-of-thought. The
 primary (`qwen3-27b`) stays at 0.2 / 1.05 for inline completions where
 determinism matters.
 
-`num_ctx 32768` is the v0.3.0 default. It is the practical sweet spot
-on 32 GB RAM with 27B partial-offload. 8K keeps a smaller KV cache
-(faster); 64K+ is documented but stresses RAM on the reference box.
-Operators can override `num_ctx` per request via the API. The
-server-side `OLLAMA_CONTEXT_LENGTH` env still applies to new loads.
+`num_ctx 65536` (64K) is the v0.3.x default. It is the minimum the
+Hermes Agent client expects (see `docs/06-networking-and-security.md` →
+*Hermes Agent*); the Qwen 3.8 native context is 256K, but a 64K KV
+cache already takes ~3 GB of RAM with a 27B partial-offload, and
+operators pushing beyond 64K are likely to OOM. Operators can override
+`num_ctx` per request via the API. The server-side
+`OLLAMA_CONTEXT_LENGTH` env still applies to new loads.
 
 For brainstorming / doc writing the same Modelfile can be invoked with
 override parameters via the API. Defaults are conservative.
 
-## How to add a new model
+## Quantisation trade-offs (operator reference)
+
+The Q4_K_M tag is the default in `scripts/pull-models.sh primary` because
+it is the right sweet spot for the RTX 3060 (12 GB VRAM) + 32 GB RAM
+reference box. Other quant tags of `qwen3.8:27b` exist on the Ollama
+library for operators with different hardware. Pick by available RAM
+and how much you want fully on GPU, not by the quality delta alone —
+the quality differences across the table are < 5 %, and partial-offload
+speed depends on how much fits in VRAM and on disk throughput, not on
+the quant.
+
+| Quant       | Approx weight | 12 GB VRAM?                       | 32 GB RAM comfortable? | Quality vs FP16 |
+|-------------|---------------|-----------------------------------|------------------------|-----------------|
+| **Q4_K_M**  | ~18 GB        | Partial offload (~6 GB to CPU)    | Yes                    | ~95 %           |
+| Q5_K_M      | ~21 GB        | Partial offload (~9 GB to CPU)    | Tight                  | ~96.5 %         |
+| Q6_K        | ~24 GB        | All offloaded (no VRAM use)        | Tight                  | ~98 %           |
+| Q8_0        | ~32 GB        | All offloaded                     | Very tight             | ~99 %           |
+
+The Ollama library also lists MLX and BF16 quant tags; those only
+apply to Apple Silicon and are explicitly out of scope for guasimo v1
+(`docs/01-architecture.md` → *What this architecture explicitly
+excludes*).
+
+To switch the default quant, edit the `[primary]` entry in
+`scripts/pull-models.sh` and `scripts/benchmark.sh` to point at the
+desired tag (e.g. `qwen3.8:27b-q5_K_M`), and update the `FROM` line
+in `config/ollama/Modelfile.qwen3-27b` (and the thinking variant) to
+match. Re-run `scripts/install-aliases.sh` to recreate the alias
+against the new base. The disk-budget estimation in `pull-models.sh`
+will pick up the new tag via the `*qwen3.8*` case branch as long as
+the tag substring still contains `qwen3.8`.
+
+Hardware targets (rule-of-thumb; validate on your own box):
+
+- **12 GB VRAM + 32 GB RAM** (guasimo reference): Q4_K_M. ~3-5 gen
+  tok/s in steady state; this is the default in v0.3.0.
+- **16 GB VRAM + 32 GB RAM**: Q5_K_M fits with a small VRAM slice;
+  ~25 % more weight, marginal quality gain. Worth it for inline
+  completions where the partial-offload hits harder.
+- **24 GB VRAM + 48 GB RAM**: Q6_K fits fully on GPU; ~33 % more
+  weight than Q4, ~3 % quality gain. Best per-GB-of-quality choice
+  for an upgrade path.
+- **24 GB VRAM + 64 GB RAM**: Q8_0 fits fully on GPU; ~80 % more
+  weight than Q4, marginal quality delta at the inference temperature
+  this Modelfile uses. Skip unless the operator is sensitive to
+  quantisation noise on long context.
+
+
 
 1. Drop the GGUF into `/bulk/models/<vendor>-<name>-<size>-<quant>.gguf`.
 2. Add a `Modelfile.<name>` in `config/ollama/` that points at it.
@@ -220,6 +270,17 @@ override parameters via the API. Defaults are conservative.
 
 This is intentionally a 5-step process; the friction prevents stale
 models from accumulating.
+
+## How to add a new model
+
+1. Drop the GGUF into `/bulk/models/<vendor>-<name>-<size>-<quant>.gguf`.
+2. Add a `Modelfile.<name>` in `config/ollama/` that points at it.
+3. `ollama create <name> -f config/ollama/Modelfile.<name>`.
+   (`scripts/install-aliases.sh` will pick up the new Modelfile
+   automatically on the next `pull-models.sh` run; re-running it
+   standalone also recreates the alias.)
+4. Verify with `./scripts/benchmark.sh <name>`.
+5. Document in `docs/04-models.md` (this file) under a new heading.
 
 ## What we explicitly do not pull
 

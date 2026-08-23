@@ -67,6 +67,16 @@
 *.ggml
 *.safetensors
 
+# macOS Finder metadata. The whitelist-style re-allows these inside
+# !/<dir>/** so they sneak in unless listed explicitly. Each top-level
+# whitelist that could contain a `.DS_Store` (config, deploy, docs,
+# scripts, tests) gets its own re-ignore rule here.
+/config/.DS_Store
+/deploy/.DS_Store
+/docs/.DS_Store
+/scripts/.DS_Store
+/tests/.DS_Store
+
 config/**/.env
 config/**/.env.*
 

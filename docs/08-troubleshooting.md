@@ -513,17 +513,108 @@ Models are too big or too many. Audit:
 Drop unused models with `ollama rm` and manually `rm` the underlying blob
 in `/bulk/models/`.
 
+## Symptom: `Error: unknown parameter 'keep_alive'` from `ollama create`
+
+Ollama removed `keep_alive` from the supported `PARAMETER` list in
+the 0.32.x generation. The v0.2.x recipes (and the v0.3.0
+`Modelfile.qwen3-27b` pair) used to set the model retention timeout
+via:
+
+    PARAMETER keep_alive 10m
+
+`scripts/install-aliases.sh` then fails with
+`Error: unknown parameter 'keep_alive'` for every Modelfile, and
+no alias is created.
+
+### Fix
+
+The retention timeout is now a server-side setting, set in
+`/etc/systemd/system/ollama.service.d/override.conf` as
+`Environment="OLLAMA_KEEP_ALIVE=10m"`. `deploy/install.sh` writes
+this line on a fresh install. The five Modelfiles in
+`config/ollama/` (`coder-14b`, `coder-7b`, `coder-32b`,
+`qwen3-27b`, `qwen3-27b-thinking`) carry a comment block in place
+of the removed `PARAMETER keep_alive` line so the rationale is
+grep-able.
+
+After updating `install.sh`, an existing box needs the new env
+line in the drop-in. Re-running the install is the cleanest path
+(it is idempotent and preserves the rest of the drop-in):
+
+    sudo ./deploy/install.sh                  # idempotent, writes OLLAMA_KEEP_ALIVE
+    ./scripts/install-aliases.sh             # now succeeds, creates all aliases
+
+Per-request override is still available — pass `keep_alive` in
+the API request body or as a query parameter.
+
+## Symptom: `pull model manifest: 412: requires a newer version of Ollama`
+
+The v0.3.0 primary (`qwen3.8:27b`) was published the same day Ollama
+shipped **v0.32.12** (2026-08-14). Older Ollama versions refuse the
+pull with HTTP 412. This affects fresh installs done before the
+pin in `deploy/install.sh` was bumped (v0.3.1), and existing boxes
+that pre-date the new model.
+
+### Fix on an existing box
+
+The official upgrade path is the upstream install script with a pinned
+version, not a direct `.deb` download (Ollama no longer publishes a
+`.deb` — the binary is a `.tar.zst`):
+
+    ollama --version                          # confirm the running version
+    sudo systemctl stop ollama
+    sudo rm -rf /usr/lib/ollama               # cleanup recommended by Ollama docs
+    curl -fsSL https://ollama.com/install.sh | OLLAMA_VERSION=0.32.14 sh
+    sudo systemctl start ollama
+    ollama --version                          # should now be 0.32.14 (or newer)
+
+The install script preserves `/etc/systemd/system/ollama.service.d/override.conf`
+(the guasimo-managed drop-in for `OLLAMA_LLAMA_SERVER`, `OLLAMA_HOST`,
+`OLLAMA_MODELS`, `OLLAMA_DEBUG`) because it only replaces the unit
+file under `/lib/systemd/system/` or `/etc/systemd/system/`. Verify
+with:
+
+    cat /etc/systemd/system/ollama.service.d/override.conf
+
+The `OLLAMA_VERSION` env override on the install side is the
+*minimum acceptable line* — apt or the upstream script will pick
+whatever is newer. Pin it explicitly if you want a deterministic
+upgrade.
+
+Alternative (manual, no install script):
+
+    curl -fsSL https://ollama.com/download/ollama-linux-amd64.tar.zst \
+      | sudo tar x -C /usr
+    sudo systemctl restart ollama
+    ollama --version
+
+The tarball approach skips the systemd unit re-install but the
+operator has to handle the service restart manually.
+
+### Fix on a fresh install
+
+`deploy/install.sh` (v0.3.1+) now pins `OLLAMA_VERSION=0.32.14` as the
+minimum acceptable line. A box built from a v0.3.1-or-newer install will
+not hit this symptom unless apt is misconfigured.
+
+### Why the pin was wrong in v0.3.0
+
+The v0.2.x line pinned `OLLAMA_VERSION=0.5.7`, which was the latest at
+the time. The 0.32.x generation (a faster release cadence, multimodal
+support, MTP speculative decoding) shipped in the meantime and
+`qwen3.8:27b` requires it. v0.3.1 corrects the pin.
+
 ## Symptom: low tokens/s with qwen3.8:27b on the RTX 3060 (12 GB)
 
-The v0.3.0 primary is `qwen3.8:27b` (~18 GB at Q4_K_M). The RTX 3060
+The v0.3.x primary is `qwen3.8:27b` (~18 GB at Q4_K_M). The RTX 3060
 only has 12 GB of VRAM, so Ollama keeps the layers that fit on the GPU
 and offloads the rest to CPU/RAM. This is **expected and by design**;
 the previous v0.2.x primary (Qwen2.5-Coder-14B, ~9 GB) fit fully in
-VRAM and ran at ~18 gen tok/s, but the v0.3.0 primary trades that
+VRAM and ran at ~18 gen tok/s, but the v0.3.x primary trades that
 speed for agentic coding, multimodal input, and 256K context.
 
 Expected numbers on the reference box (RTX 3060 + i5-10xxx + 32 GB
-RAM) at 32K `num_ctx`:
+RAM) at 64K `num_ctx`:
 
 - **Prompt eval**: ~3-5 tok/s
 - **Generation**:   ~3-5 tok/s (the v0.2.x 14B hit ~18 tok/s full VRAM)
@@ -540,8 +631,9 @@ If you are seeing much less than that, walk down this list:
    probably running on the secondary.
 
 2. **Lower `num_ctx`** to reduce KV cache pressure on RAM. The
-   `Modelfile.qwen3-27b` ships with `num_ctx 32768`; drop to 8192 for
-   inline IDE completions and 16384 for review/refactor:
+   `Modelfile.qwen3-27b` ships with `num_ctx 65536` (the Hermes
+   Agent floor); drop to 8192 for inline IDE completions and 16384
+   for review/refactor:
 
        # per request
        curl -X POST http://127.0.0.1:11434/api/generate -d '{
