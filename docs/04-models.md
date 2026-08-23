@@ -35,8 +35,9 @@ translation between Go ↔ C#.
 
 The 18 GB Q4_K_M does not fit fully in 12 GB of VRAM. Ollama keeps the
 layers that fit on the GPU and offloads the rest to CPU/RAM. Expect
-**~6 gen tok/s** with a 64K `num_ctx` (validated on the reference box,
-2026-08-23), down from the ~18 tok/s the previous v0.2.x primary
+**~5 gen tok/s** with a 64K `num_ctx` in steady state (validated on
+the reference box, 2026-08-23; cold load ~3-5 tok/s, warm load
+~5-6 tok/s). Down from the ~18 tok/s the previous v0.2.x primary
 (Qwen2.5-Coder-14B, fully in VRAM) achieved.
 
 This is the documented cost of gaining agentic coding, multimodal
