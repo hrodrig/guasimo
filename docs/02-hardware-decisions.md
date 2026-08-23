@@ -37,29 +37,39 @@ fit and code quality. Going past that needs measured VRAM, not guesses.
 
 ## RAM budget (32 GB system)
 
-| Allocation                                      | GB     |
-|-------------------------------------------------|--------|
-| Ubuntu 26.04 + desktop (if installed)           | 2–4    |
-| llama.cpp (resident model + KV cache, 14B Q4)   | ~10    |
-| Ollama (small, mostly idle)                     | 0.2    |
-| Open WebUI (Python + Node, modest)              | 0.5    |
-| nginx                                           | 0.05   |
-| Headroom for browser, IDE, kernel cache, swap   | 12–18  |
+| Allocation                                          | GB     |
+|-----------------------------------------------------|--------|
+| Ubuntu 26.04 + desktop (if installed)               | 2–4    |
+| llama.cpp + Ollama (resident model, 27B Q4 partial) | ~20–22 |
+| Open WebUI (Python + Node, modest)                  | 0.5    |
+| nginx                                               | 0.05   |
+| Headroom for browser, IDE, kernel cache             | 5–9    |
 
-Total never exceeds 28 GB. We never enable swap beyond the Ubuntu default;
-OOM is the correct signal.
+The 27B partial offload in v0.3.0 raises the resident model weight
+from ~10 GB (v0.2.x 14B, full VRAM) to ~20–22 GB (27B split between
+VRAM and RAM). With a 32K `num_ctx` the KV cache adds ~1–2 GB
+on top. Total at idle sits around 24–27 GB; under load with a long
+context it can climb to ~29 GB. We never enable swap beyond the
+Ubuntu default — OOM is the correct signal when an operator pushes
+`num_ctx` past the available headroom.
 
 ## VRAM math (RTX 3060, 12 GB)
 
-| Model size (B params) | Q4_K_M weight | Q4 KV cache (8K ctx) | Total fit | Fits 12 GB? | Notes                       |
-|-----------------------|---------------|----------------------|-----------|-------------|-----------------------------|
-| 7                     | ~5 GB         | ~1 GB                | ~6 GB     | Yes         | Plenty of headroom          |
-| 14                    | ~9 GB         | ~1.5 GB              | ~10.5 GB  | Yes         | Primary model, ~1.5 GB free |
-| 32                    | ~20 GB        | ~2.5 GB              | ~22.5 GB  | No          | Needs CPU offload (~10 GB)  |
+| Model size (B params) | Q4_K_M weight | Q4 KV cache (8K ctx) | Total fit | Fits 12 GB? | Notes                                            |
+|-----------------------|---------------|----------------------|-----------|-------------|--------------------------------------------------|
+| 7                     | ~5 GB         | ~1 GB                | ~6 GB     | Yes         | Plenty of headroom; v0.3.0 secondary, full VRAM  |
+| 14                    | ~9 GB         | ~1.5 GB              | ~10.5 GB  | Yes         | Legacy primary (v0.2.x); ~1.5 GB free on GPU     |
+| 27                    | ~18 GB        | ~2.5 GB              | ~20.5 GB  | No          | **v0.3.0 primary**: partial offload, ~3-5 tok/s  |
+| 32                    | ~20 GB        | ~2.5 GB              | ~22.5 GB  | No          | LEGACY (v0.3.0+): not pulled by default           |
 
-For v1 we stay at 14 B / Q4 on the GPU. The 32 B option is documented as a
-"pull-on-demand, partial offload" scenario. Going past that needs measured
-VRAM, not guesses.
+For v0.3.0 we ship with **partial offload** on the RTX 3060 as the
+default. The 27 B Q4_K_M is ~18 GB and the card has 12 GB of VRAM, so
+~6 GB of weights stay on the CPU side of the system RAM. The previous
+v0.2.x primary (14 B, ~9 GB) fit fully in VRAM and ran at ~18 gen
+tok/s; the v0.3.0 primary trades speed for agentic coding, multimodal
+input, and 256K context. The 32 B option is documented as a
+"pull-on-demand, partial offload" scenario but no longer in the
+default pull set. Going past that needs measured VRAM, not guesses.
 
 ## Disk layout
 
