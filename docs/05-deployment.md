@@ -147,7 +147,7 @@ repo on 26.04. If the box is already wedged, see
 
 ## Output of a successful install
 
-Shape (real run on Ubuntu 26.04 + RTX 3060, 2026-07-31):
+Shape (real run on Ubuntu 26.04 + RTX 3060, v0.3.0):
 
 ```
 [phase 1/5] probe ............... NVIDIA hardware=y runtime=y
@@ -162,15 +162,23 @@ URLs:
 
 Next steps:
   ./scripts/healthcheck.sh
-  ./scripts/pull-models.sh primary
-  ./scripts/benchmark.sh primary
+  ./scripts/pull-models.sh primary      # qwen3.8:27b (~18 GB, partial offload on 3060)
+  ./scripts/pull-models.sh thinking     # same base, alias with reasoning on
+  ./scripts/benchmark.sh   primary
 ```
 
 Chat URL is **HTTPS on nginx :443**, not bare `:8080` (Open WebUI binds
 loopback only). The exact hostname comes from `hostname -f`.
 
-Primary-model pull was validated on the reference box (2026-08-01); see
-the capture in `docs/04-models.md`.
+The v0.3.0 primary (`qwen3.8:27b`, ~18 GB) does not fit in the RTX 3060's
+12 GB VRAM; Ollama will keep the layers that fit and offload the rest
+to CPU/RAM. Expect ~3-5 gen tok/s in steady state vs the ~18 tok/s
+the v0.2.x 14B primary achieved when it fit fully in VRAM. This is
+the documented cost of gaining agentic coding, multimodal input, and
+256K context on the same single-user box. The pull step is also
+heavier (~18 GB vs ~9 GB); `scripts/pull-models.sh` checks free disk
+before it starts. See `docs/04-models.md` for the full tradeoff and
+`docs/08-troubleshooting.md` for tuning tips.
 
 ## Rollback
 

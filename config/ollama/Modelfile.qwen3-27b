@@ -1,0 +1,44 @@
+# Modelfile.qwen3-27b — primary coding model (Qwen 3.8 generation).
+#
+# Based on Qwen3.8-27B-Instruct (Apache 2.0, dense 27B, vision-language,
+# 256K context, thinking on by default). This is the new default primary
+# as of v0.3.0, replacing Qwen2.5-Coder-14B-Instruct.
+#
+# On the RTX 3060 (12 GB VRAM) this 18 GB Q4_K_M does not fit fully in
+# VRAM. Ollama keeps the layers that fit on GPU and offloads the rest
+# to CPU/RAM. Expect noticeably lower tokens/s than the previous primary
+# (~3-5 tok/s partial offload vs ~18 tok/s full VRAM with the 14B). This
+# is the documented tradeoff for gaining agentic coding, multimodal
+# (text + image) input, and 256K context on the same single-user box.
+#
+# Create with (run from the repo root, so the relative path to
+# PROMPT.coding.md resolves):
+#
+#   ollama create qwen3-27b -f config/ollama/Modelfile.qwen3-27b
+#
+# Reference: docs/04-models.md (Qwen 3.8 generation section).
+
+FROM qwen3.8:latest
+
+# Chat template and stop tokens are inherited from the base model
+# (Qwen 3.x uses ChatML with <|im_start|>/<|im_end|>). Do NOT override
+# the template here — that breaks thinking mode and the multimodal
+# vision input handling. The model's native template is correct.
+
+SYSTEM """$(cat config/ollama/PROMPT.coding.md)"""
+
+# Sampling — conservative for code. Lower temperature = more deterministic.
+PARAMETER temperature        0.2
+PARAMETER top_p              0.95
+PARAMETER top_k              40
+PARAMETER repeat_penalty     1.05
+
+# Context. 32K is the practical sweet spot on 32 GB RAM with 27B
+# partial-offload. 8K keeps a smaller KV cache (faster, but loses
+# long-context coding). 64K+ is documented in docs/04-models.md but
+# stresses RAM on the reference box and triggers CPU-heavy KV cache.
+PARAMETER num_ctx            32768
+
+# Keep the model loaded for 10 minutes after the last request so
+# back-to-back prompts don't pay the cold-load tax.
+PARAMETER keep_alive         10m

@@ -12,10 +12,12 @@ set -euo pipefail
 NAME="${1:-primary}"
 
 # Map nicknames → registered Ollama tags (mirrors pull-models.sh).
+# `thinking` resolves to the same base as `primary`; the system prompt
+# difference lives in config/ollama/Modelfile.qwen3-27b-thinking.
 declare -A MODELS=(
-  [primary]="qwen2.5-coder:14b-instruct-q4_K_M"
+  [primary]="qwen3.8:27b"
   [secondary]="qwen2.5-coder:7b-instruct-q4_K_M"
-  [large]="qwen2.5-coder:32b-instruct-q4_K_M"
+  [thinking]="qwen3.8:27b"
   [gemma]="gemma4:12b"
   [gemma4]="gemma4:12b"
   [deepseek]="deepseek-coder-v2:lite"

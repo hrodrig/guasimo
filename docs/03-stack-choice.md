@@ -24,6 +24,19 @@ The differences are operational, not functional.
 - Plays well with Ollama as a backend (`OLLAMA_LLAMA_SERVER` override) or
   standalone.
 
+### Model choice (v0.3.0+)
+
+The model family decision is layered on top of the stack decision and
+lives in `docs/04-models.md`. The short version: the v0.3.0 primary
+is `qwen3.8:27b` (Qwen3.8-27B-Instruct, Apache 2.0, dense 27B,
+vision-language, 256K context, thinking on by default). It is the
+strongest local coder for the RTX 3060 (12 GB) in mid-2026, and the
+partial offload tradeoff (lower tokens/s than the v0.2.x 14B that
+fit fully in VRAM) is the documented cost of gaining multimodal
+input and 256K context on the same single-user box. Operators who
+want fast chat without the offload cost can use the secondary
+(`qwen2.5-coder:7b-instruct-q4_K_M`, full VRAM).
+
 ### Ollama
 
 - Provides a stable, versioned OpenAI-compatible API on top of llama.cpp

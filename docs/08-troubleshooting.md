@@ -513,6 +513,76 @@ Models are too big or too many. Audit:
 Drop unused models with `ollama rm` and manually `rm` the underlying blob
 in `/bulk/models/`.
 
+## Symptom: low tokens/s with qwen3.8:27b on the RTX 3060 (12 GB)
+
+The v0.3.0 primary is `qwen3.8:27b` (~18 GB at Q4_K_M). The RTX 3060
+only has 12 GB of VRAM, so Ollama keeps the layers that fit on the GPU
+and offloads the rest to CPU/RAM. This is **expected and by design**;
+the previous v0.2.x primary (Qwen2.5-Coder-14B, ~9 GB) fit fully in
+VRAM and ran at ~18 gen tok/s, but the v0.3.0 primary trades that
+speed for agentic coding, multimodal input, and 256K context.
+
+Expected numbers on the reference box (RTX 3060 + i5-10xxx + 32 GB
+RAM) at 32K `num_ctx`:
+
+- **Prompt eval**: ~3-5 tok/s
+- **Generation**:   ~3-5 tok/s (the v0.2.x 14B hit ~18 tok/s full VRAM)
+
+If you are seeing much less than that, walk down this list:
+
+1. **Confirm the base is actually loaded**, not a smaller alias:
+
+       curl -sS http://127.0.0.1:11434/api/ps | jq '.models[].name'
+
+   You should see `qwen3-27b:latest` (or `qwen3.8:27b:latest`) on
+   GPU. If you see `qwen2.5-coder:7b-instruct-q4_K_M` or any other
+   name, the Modelfile alias is not the active one and you are
+   probably running on the secondary.
+
+2. **Lower `num_ctx`** to reduce KV cache pressure on RAM. The
+   `Modelfile.qwen3-27b` ships with `num_ctx 32768`; drop to 8192 for
+   inline IDE completions and 16384 for review/refactor:
+
+       # per request
+       curl -X POST http://127.0.0.1:11434/api/generate -d '{
+         "model": "qwen3-27b",
+         "prompt": "...",
+         "options": {"num_ctx": 8192}
+       }'
+
+   8K is enough for most single-file completions; 32K only pays off
+   for repo-scale reasoning.
+
+3. **Check that the OLLAMA_MODELS dir is on fast disk** (NVMe, not the
+   SATA SSD). With partial offload the model read pattern thrashes
+   `/data/models` and `/bulk/models` between prompts; a slow disk
+   makes the offloaded layers crawl. `df -h /data /bulk` and
+   `lsblk -o NAME,SCHED,ROTA` to confirm.
+
+4. **Confirm the system is not thermal-throttling**. `sensors | grep
+   Core` (install `lm-sensors`) and check `dmesg | grep -i
+   'killed process'` for OOM kills under load. Partial offload is
+   RAM-sensitive; a 32 GB box with a 27 B model is ~24-27 GB
+   resident and can OOM at long context if other processes are
+   eating memory.
+
+5. **Drop to the secondary** for chat that does not need the larger
+   model's reasoning depth. `qwen2.5-coder:7b-instruct-q4_K_M`
+   fits fully in VRAM and runs at ~25-30 gen tok/s on the same
+   hardware. Use it for inline completions; keep the v0.3.0
+   primary for review, refactor, and multimodal.
+
+6. **If the model is unusable at any context length**, the partial
+   offload may not be kicking in correctly. Check `ollama ps` and
+   the system journal:
+
+       journalctl -u ollama -n 50 --no-pager
+
+   A common failure mode is the OLLAMA_LLAMA_SERVER override
+   pointing at a missing binary (see
+   `mkdir /data/models/blobs: permission denied` above for the
+   sibling issue).
+
 ## Symptom: systemd unit "failed" on boot
 
     sudo systemctl reset-failed
