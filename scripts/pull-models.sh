@@ -114,5 +114,18 @@ echo
 echo "models now visible to Ollama:"
 run_ollama list
 
+# Create the Modelfile aliases (qwen3-27b, qwen3-27b-thinking, ...) that
+# match the bases we just pulled. Closes the v0.3.0 gap where recipes
+# were checked in but never applied. `install-aliases.sh` is a no-op
+# for bases that aren't pulled yet.
+echo
+echo ">>> creating Modelfile aliases (config/ollama/Modelfile.*)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if ! "${SCRIPT_DIR}/install-aliases.sh"; then
+  echo "warning: alias creation failed; the base models are pulled but" >&2
+  echo "         the named recipes are not. Re-run scripts/install-aliases.sh" >&2
+  echo "         later once the issue is resolved." >&2
+fi
+
 echo
 echo "next step: scripts/benchmark.sh ${WHAT}"
