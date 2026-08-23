@@ -18,7 +18,7 @@ For a coding LLM on a 32 GB CPU box we want:
 | Size              | 27 B parameters (dense)                     |
 | Quantisation      | Q4_K_M (4-bit, K-quant, medium)             |
 | Disk              | ~18 GB                                      |
-| RAM at inference  | ~22 GB partial-offload (weights + KV cache, 32K ctx) |
+| RAM at inference  | ~25 GB partial-offload (weights + KV cache, 64K ctx) |
 | Context window    | 256 K (we use 8–32 K; longer costs RAM)     |
 | Modality          | Text + image (vision-language)              |
 | Thinking          | On by default; per-request toggle           |
@@ -35,8 +35,9 @@ translation between Go ↔ C#.
 
 The 18 GB Q4_K_M does not fit fully in 12 GB of VRAM. Ollama keeps the
 layers that fit on the GPU and offloads the rest to CPU/RAM. Expect
-**~3–5 gen tok/s** with a 32K `num_ctx`, down from the ~18 tok/s the
-previous v0.2.x primary (Qwen2.5-Coder-14B, fully in VRAM) achieved.
+**~6 gen tok/s** with a 64K `num_ctx` (validated on the reference box,
+2026-08-23), down from the ~18 tok/s the previous v0.2.x primary
+(Qwen2.5-Coder-14B, fully in VRAM) achieved.
 
 This is the documented cost of gaining agentic coding, multimodal
 input, and 256K context on the same single-user box. Operators who
@@ -135,7 +136,7 @@ Pull when you want a second opinion vs Qwen on hard refactors. Alias
 
 | Model family              | Coding (self-host focus) | Self-host on RTX 3060 (12 GB)? | Verdict |
 |---------------------------|--------------------------|--------------------------------|---------|
-| **Qwen3.8-27B**           | High (agentic, multimodal) | Partial offload (Q4 @ 32K)  | **Primary** (v0.3.0+) |
+| **Qwen3.8-27B**           | High (agentic, multimodal) | Partial offload (Q4 @ 64K)  | **Primary** (v0.3.0+) |
 | Qwen2.5-Coder-14B-Instruct| High                     | Yes, full VRAM (Q4 @ 8K)       | Legacy primary (v0.2.x) |
 | Qwen2.5-Coder-7B-Instruct | High / fast              | Yes, full VRAM                 | Secondary |
 | Qwen2.5-Coder-32B-Instruct| High                     | Partial offload (heavy)        | LEGACY (not pulled by default) |
@@ -186,14 +187,14 @@ behaviour is consistent across sizes.
 ## Sampling defaults
 
 For coding we want low temperature (deterministic-ish) and top-p clamped
-narrow. Both v0.3.0 Modelfiles (`qwen3-27b` and `qwen3-27b-thinking`)
+narrow. Both v0.3.x Modelfiles (`qwen3-27b` and `qwen3-27b-thinking`)
 use:
 
     temperature        0.2     # 0.6 for the thinking variant
     top_p              0.95
     top_k              40
     repeat_penalty     1.05    # 1.0 for the thinking variant
-    num_ctx            32768   # 8192 for v0.2.x recipes
+    num_ctx            65536   # 8192 for v0.2.x recipes
 
 The `qwen3-27b-thinking` variant loosens `temperature` to 0.6 and
 `repeat_penalty` to 1.0 because thinking traces repeat common
@@ -201,11 +202,13 @@ connectors; tighter penalties truncate the chain-of-thought. The
 primary (`qwen3-27b`) stays at 0.2 / 1.05 for inline completions where
 determinism matters.
 
-`num_ctx 32768` is the v0.3.0 default. It is the practical sweet spot
-on 32 GB RAM with 27B partial-offload. 8K keeps a smaller KV cache
-(faster); 64K+ is documented but stresses RAM on the reference box.
-Operators can override `num_ctx` per request via the API. The
-server-side `OLLAMA_CONTEXT_LENGTH` env still applies to new loads.
+`num_ctx 65536` (64K) is the v0.3.x default. It is the minimum the
+Hermes Agent client expects (see `docs/06-networking-and-security.md` →
+*Hermes Agent*); the Qwen 3.8 native context is 256K, but a 64K KV
+cache already takes ~3 GB of RAM with a 27B partial-offload, and
+operators pushing beyond 64K are likely to OOM. Operators can override
+`num_ctx` per request via the API. The server-side
+`OLLAMA_CONTEXT_LENGTH` env still applies to new loads.
 
 For brainstorming / doc writing the same Modelfile can be invoked with
 override parameters via the API. Defaults are conservative.

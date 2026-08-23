@@ -33,11 +33,12 @@ PARAMETER top_p              0.95
 PARAMETER top_k              40
 PARAMETER repeat_penalty     1.05
 
-# Context. 32K is the practical sweet spot on 32 GB RAM with 27B
-# partial-offload. 8K keeps a smaller KV cache (faster, but loses
-# long-context coding). 64K+ is documented in docs/04-models.md but
-# stresses RAM on the reference box and triggers CPU-heavy KV cache.
-PARAMETER num_ctx            32768
+# Context. 64K is the minimum the box can run (Hermes Agent
+# requires it for tool use; Qwen3.8 native is 256K but the KV cache
+# dominates RAM above 64K on a 32 GB box with 27B partial-offload).
+# Operators can drop to 8K for inline completions via per-request
+# `num_ctx` overrides.
+PARAMETER num_ctx            65536
 
 # `keep_alive` is no longer a valid Modelfile PARAMETER in Ollama 0.32.x
 # (it was removed from the supported PARAMETER list). The server-side

@@ -606,15 +606,15 @@ support, MTP speculative decoding) shipped in the meantime and
 
 ## Symptom: low tokens/s with qwen3.8:27b on the RTX 3060 (12 GB)
 
-The v0.3.0 primary is `qwen3.8:27b` (~18 GB at Q4_K_M). The RTX 3060
+The v0.3.x primary is `qwen3.8:27b` (~18 GB at Q4_K_M). The RTX 3060
 only has 12 GB of VRAM, so Ollama keeps the layers that fit on the GPU
 and offloads the rest to CPU/RAM. This is **expected and by design**;
 the previous v0.2.x primary (Qwen2.5-Coder-14B, ~9 GB) fit fully in
-VRAM and ran at ~18 gen tok/s, but the v0.3.0 primary trades that
+VRAM and ran at ~18 gen tok/s, but the v0.3.x primary trades that
 speed for agentic coding, multimodal input, and 256K context.
 
 Expected numbers on the reference box (RTX 3060 + i5-10xxx + 32 GB
-RAM) at 32K `num_ctx`:
+RAM) at 64K `num_ctx`:
 
 - **Prompt eval**: ~3-5 tok/s
 - **Generation**:   ~3-5 tok/s (the v0.2.x 14B hit ~18 tok/s full VRAM)
@@ -631,8 +631,9 @@ If you are seeing much less than that, walk down this list:
    probably running on the secondary.
 
 2. **Lower `num_ctx`** to reduce KV cache pressure on RAM. The
-   `Modelfile.qwen3-27b` ships with `num_ctx 32768`; drop to 8192 for
-   inline IDE completions and 16384 for review/refactor:
+   `Modelfile.qwen3-27b` ships with `num_ctx 65536` (the Hermes
+   Agent floor); drop to 8192 for inline IDE completions and 16384
+   for review/refactor:
 
        # per request
        curl -X POST http://127.0.0.1:11434/api/generate -d '{

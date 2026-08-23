@@ -64,9 +64,10 @@ performance.
 
 - Primary: `qwen3.8:27b` (Q4_K_M, ~18 GB). Qwen3.8-27B-Instruct, Apache 2.0,
   dense 27B, vision-language (text + image), 256K context, thinking on by
-  default. On the RTX 3060 (12 GB) this is partial-offloaded; the operator
-  can force a lower `num_ctx` to keep RAM pressure manageable. See
-  `docs/04-models.md` and `docs/08-troubleshooting.md` for the
+  default. The Modelfile ships with `num_ctx 65536` (64K) — the Hermes
+  Agent floor — and partial-offloads on the RTX 3060 (12 GB VRAM). The
+  operator can force a lower `num_ctx` to keep RAM pressure manageable.
+  See `docs/04-models.md` and `docs/08-troubleshooting.md` for the
   partial-offload tradeoff.
 - Primary alias: `qwen3-27b`, created from
   `config/ollama/Modelfile.qwen3-27b` (inherits the shared coding system

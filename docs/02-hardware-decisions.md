@@ -41,17 +41,21 @@ fit and code quality. Going past that needs measured VRAM, not guesses.
 |-----------------------------------------------------|--------|
 | Ubuntu 26.04 + desktop (if installed)               | 2–4    |
 | llama.cpp + Ollama (resident model, 27B Q4 partial) | ~20–22 |
+| KV cache (64K `num_ctx` on 27B Q4)                  | ~3     |
 | Open WebUI (Python + Node, modest)                  | 0.5    |
 | nginx                                               | 0.05   |
-| Headroom for browser, IDE, kernel cache             | 5–9    |
+| Headroom for browser, IDE, kernel cache             | 2–6    |
 
-The 27B partial offload in v0.3.0 raises the resident model weight
+The 27B partial offload in v0.3.x raises the resident model weight
 from ~10 GB (v0.2.x 14B, full VRAM) to ~20–22 GB (27B split between
-VRAM and RAM). With a 32K `num_ctx` the KV cache adds ~1–2 GB
-on top. Total at idle sits around 24–27 GB; under load with a long
-context it can climb to ~29 GB. We never enable swap beyond the
-Ubuntu default — OOM is the correct signal when an operator pushes
-`num_ctx` past the available headroom.
+VRAM and RAM). The Modelfile ships with a 64K `num_ctx` (the Hermes
+Agent floor), which adds ~3 GB of KV cache on top. Total at idle
+sits around 26–28 GB; under load with a long context it can climb
+to ~30 GB. We never enable swap beyond the Ubuntu default — OOM is
+the correct signal when an operator pushes `num_ctx` past the
+available headroom. Operators who do not run Hermes can drop the
+Modelfile `num_ctx` to 8K (for inline completions) or 16K (a middle
+ground) and reclaim ~1–2 GB of RAM.
 
 ## VRAM math (RTX 3060, 12 GB)
 

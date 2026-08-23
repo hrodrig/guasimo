@@ -36,7 +36,7 @@ Ollama.
 ### Added
 - `config/ollama/Modelfile.qwen3-27b` — default primary recipe
   (`qwen3-27b` alias), inherits the shared `PROMPT.coding.md` system
-  prompt, conservative sampling, `num_ctx 32768`, `keep_alive 10m`.
+  prompt, conservative sampling, `num_ctx 65536` (64K), `keep_alive 10m`.
 - `config/ollama/Modelfile.qwen3-27b-thinking` — same Qwen3.8-27B
   base, reasoning on, `qwen3-27b-thinking` alias.
 - `scripts/install-aliases.sh` — scans `config/ollama/Modelfile.*`,
