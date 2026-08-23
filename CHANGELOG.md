@@ -286,16 +286,21 @@ v0.2.x-era `OLLAMA_VERSION=0.5.7` pin was too old.
 
 ### Upgrade path for existing boxes (not in the install script)
 
+The upstream install script is the supported upgrade path (Ollama
+publishes a `.tar.zst` of the binary, not a `.deb`):
+
     ollama --version
     sudo systemctl stop ollama
-    curl -fsSL https://ollama.com/download/ollama-linux-amd64.deb \
-      -o /tmp/ollama.deb
-    sudo dpkg -i /tmp/ollama.deb
+    sudo rm -rf /usr/lib/ollama               # cleanup recommended by Ollama docs
+    curl -fsSL https://ollama.com/install.sh | OLLAMA_VERSION=0.32.14 sh
     sudo systemctl start ollama
-    ollama --version    # should be >= 0.32.12
+    ollama --version    # should be 0.32.14 (or newer)
     ./scripts/pull-models.sh primary
     ./scripts/benchmark.sh primary
 
+The install script preserves
+`/etc/systemd/system/ollama.service.d/override.conf` (guasimo's drop-in
+for `OLLAMA_LLAMA_SERVER`, `OLLAMA_HOST`, `OLLAMA_MODELS`, `OLLAMA_DEBUG`).
 Models in `/data/models` are not affected by the binary upgrade; the
 Modelfile alias `qwen3-27b` is created automatically by
 `scripts/install-aliases.sh` at the end of `pull-models.sh`.
