@@ -513,6 +513,40 @@ Models are too big or too many. Audit:
 Drop unused models with `ollama rm` and manually `rm` the underlying blob
 in `/bulk/models/`.
 
+## Symptom: `Error: unknown parameter 'keep_alive'` from `ollama create`
+
+Ollama removed `keep_alive` from the supported `PARAMETER` list in
+the 0.32.x generation. The v0.2.x recipes (and the v0.3.0
+`Modelfile.qwen3-27b` pair) used to set the model retention timeout
+via:
+
+    PARAMETER keep_alive 10m
+
+`scripts/install-aliases.sh` then fails with
+`Error: unknown parameter 'keep_alive'` for every Modelfile, and
+no alias is created.
+
+### Fix
+
+The retention timeout is now a server-side setting, set in
+`/etc/systemd/system/ollama.service.d/override.conf` as
+`Environment="OLLAMA_KEEP_ALIVE=10m"`. `deploy/install.sh` writes
+this line on a fresh install. The five Modelfiles in
+`config/ollama/` (`coder-14b`, `coder-7b`, `coder-32b`,
+`qwen3-27b`, `qwen3-27b-thinking`) carry a comment block in place
+of the removed `PARAMETER keep_alive` line so the rationale is
+grep-able.
+
+After updating `install.sh`, an existing box needs the new env
+line in the drop-in. Re-running the install is the cleanest path
+(it is idempotent and preserves the rest of the drop-in):
+
+    sudo ./deploy/install.sh                  # idempotent, writes OLLAMA_KEEP_ALIVE
+    ./scripts/install-aliases.sh             # now succeeds, creates all aliases
+
+Per-request override is still available — pass `keep_alive` in
+the API request body or as a query parameter.
+
 ## Symptom: `pull model manifest: 412: requires a newer version of Ollama`
 
 The v0.3.0 primary (`qwen3.8:27b`) was published the same day Ollama
