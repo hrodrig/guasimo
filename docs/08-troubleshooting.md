@@ -523,18 +523,39 @@ that pre-date the new model.
 
 ### Fix on an existing box
 
-    ollama --version    # confirm the running version
-    sudo systemctl stop ollama
-    curl -fsSL https://ollama.com/download/ollama-linux-amd64.deb \
-      -o /tmp/ollama.deb
-    sudo dpkg -i /tmp/ollama.deb
-    sudo systemctl start ollama
-    ollama --version    # should now be >= 0.32.12
+The official upgrade path is the upstream install script with a pinned
+version, not a direct `.deb` download (Ollama no longer publishes a
+`.deb` — the binary is a `.tar.zst`):
 
-The `.deb` URL is always the latest release; the operator does not need
-to track Ollama version numbers manually. The `OLLAMA_VERSION` env
-override on the install side is the *minimum acceptable line* — apt or
-the upstream script will pick whatever is newer.
+    ollama --version                          # confirm the running version
+    sudo systemctl stop ollama
+    sudo rm -rf /usr/lib/ollama               # cleanup recommended by Ollama docs
+    curl -fsSL https://ollama.com/install.sh | OLLAMA_VERSION=0.32.14 sh
+    sudo systemctl start ollama
+    ollama --version                          # should now be 0.32.14 (or newer)
+
+The install script preserves `/etc/systemd/system/ollama.service.d/override.conf`
+(the guasimo-managed drop-in for `OLLAMA_LLAMA_SERVER`, `OLLAMA_HOST`,
+`OLLAMA_MODELS`, `OLLAMA_DEBUG`) because it only replaces the unit
+file under `/lib/systemd/system/` or `/etc/systemd/system/`. Verify
+with:
+
+    cat /etc/systemd/system/ollama.service.d/override.conf
+
+The `OLLAMA_VERSION` env override on the install side is the
+*minimum acceptable line* — apt or the upstream script will pick
+whatever is newer. Pin it explicitly if you want a deterministic
+upgrade.
+
+Alternative (manual, no install script):
+
+    curl -fsSL https://ollama.com/download/ollama-linux-amd64.tar.zst \
+      | sudo tar x -C /usr
+    sudo systemctl restart ollama
+    ollama --version
+
+The tarball approach skips the systemd unit re-install but the
+operator has to handle the service restart manually.
 
 ### Fix on a fresh install
 
