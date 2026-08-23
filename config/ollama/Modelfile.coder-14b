@@ -22,6 +22,7 @@ PARAMETER num_ctx            8192
 PARAMETER stop               "<|im_end|>"
 PARAMETER stop               "<|endoftext|>"
 
-# Keep the model loaded for 10 minutes after the last request so back-to-back
-# prompts don't pay the cold-load tax.
-PARAMETER keep_alive         10m
+# `keep_alive` is no longer a valid Modelfile PARAMETER in Ollama 0.32.x.
+# The server-side default is set in /etc/systemd/system/ollama.service.d/override.conf
+# via OLLAMA_KEEP_ALIVE=10m. Per-request override is also available via
+# the API. This block is intentionally left as a comment for grep.

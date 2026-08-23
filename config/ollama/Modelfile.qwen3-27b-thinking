@@ -46,7 +46,9 @@ PARAMETER repeat_penalty     1.0
 # a longer ctx is a false economy on 32 GB RAM with 27B partial offload.
 PARAMETER num_ctx            32768
 
-# Keep the model loaded 5 minutes — thinking prompts usually take longer
-# and run less often than chat. Cold-load between back-to-back is
-# expensive at 18 GB; this trades a bit of RAM for responsiveness.
-PARAMETER keep_alive         5m
+# `keep_alive` is no longer a valid Modelfile PARAMETER in Ollama 0.32.x
+# (it was removed from the supported PARAMETER list). The server-side
+# default is set in /etc/systemd/system/ollama.service.d/override.conf
+# via OLLAMA_KEEP_ALIVE=10m. Thinking prompts usually run less often than
+# chat; if the per-request default of 10m feels wrong, override via the
+# API's `keep_alive` field.

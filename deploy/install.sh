@@ -428,6 +428,11 @@ Environment="OLLAMA_LLAMA_SERVER=${INSTALL_ROOT}/llama-server"
 Environment="OLLAMA_HOST=127.0.0.1:11434"
 Environment="OLLAMA_MODELS=${DATA_DISK}/models"
 Environment="OLLAMA_DEBUG=false"
+# Server-side default for how long a model stays loaded after the last
+# request. Used to be a Modelfile PARAMETER (keep_alive 10m) in v0.2.x;
+# removed from the supported PARAMETER list in Ollama 0.32.x. Per-request
+# override is still available via the API's `keep_alive` field.
+Environment="OLLAMA_KEEP_ALIVE=10m"
 EOF
 
 # Ollama's unit runs as User=ollama (upstream default). Give that user

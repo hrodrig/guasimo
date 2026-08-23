@@ -39,6 +39,8 @@ PARAMETER repeat_penalty     1.05
 # stresses RAM on the reference box and triggers CPU-heavy KV cache.
 PARAMETER num_ctx            32768
 
-# Keep the model loaded for 10 minutes after the last request so
-# back-to-back prompts don't pay the cold-load tax.
-PARAMETER keep_alive         10m
+# `keep_alive` is no longer a valid Modelfile PARAMETER in Ollama 0.32.x
+# (it was removed from the supported PARAMETER list). The server-side
+# default is set in /etc/systemd/system/ollama.service.d/override.conf
+# via OLLAMA_KEEP_ALIVE=10m. Per-request override is also available
+# via the API's `keep_alive` field.
