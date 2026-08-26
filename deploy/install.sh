@@ -392,6 +392,12 @@ if [ "${NEED_BUILD}" = y ]; then
     chown -R "${SERVICE_USER}:${SERVICE_USER}" "${LLAMA_SRC_DIR}"
   else
     git_llama fetch --depth=1 origin "${LLAMA_CPP_REF}"
+    # A previous run may have left the legacy GCC-15 header patch in the
+    # tree (src/llama-mmap.h). `checkout FETCH_HEAD` aborts with "local
+    # changes would be overwritten" unless we discard it first. The patch
+    # is re-applied below by patch_llama_gcc15 if the ref still needs it
+    # (b10630+ does not), so discarding it here is safe.
+    git_llama checkout -- .
     git_llama checkout FETCH_HEAD
   fi
   mark_llama_safe_directory
