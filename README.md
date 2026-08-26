@@ -51,10 +51,11 @@ A self-hosted local LLM coding workstation. One command takes a fresh Ubuntu 26.
 - `healthcheck.sh`, `pull-models.sh`, and `benchmark.sh` for day-one validation
 - `install-aliases.sh` keeps the Modefile recipes in `config/ollama/` in sync
   with the running Ollama (auto-runs at the end of `pull-models.sh`)
-- Default primary is Qwen3.8-27B-Instruct (`qwen3.8:27b`): vision-language
-  (text + image), 256K context, Apache 2.0. Partial offload on the RTX 3060
-  (12 GB VRAM) — see `docs/04-models.md` for the speed/quality trade-off.
-- Optional model nicknames: `secondary` (Qwen2.5-Coder-7B, full VRAM),
+- Default primary is Ornith-1.5-9B (`ornith-9b`, Q6_K): hybrid-attention 9B,
+  flat throughput across 8K→64K context (0 % cliff), full VRAM on the
+  RTX 3060 (12 GB). A manual GGUF drop — see `docs/04-models.md` for the
+  speed/quality trade-off and the "how to add a model" flow.
+- Optional model nicknames: `secondary` (Qwen3.8-27B, 256K agentic depth),
   `thinking` (Qwen3.8-27B with reasoning on), `gemma`, `deepseek`
 - Docs-first contract: `SPECIFICATIONS.md` + `docs/` stay authoritative
 
@@ -74,13 +75,15 @@ git clone https://github.com/hrodrig/guasimo.git ~/guasimo
 cd ~/guasimo
 sudo ./deploy/install.sh              # detects GPU, builds llama.cpp, wires systemd
 ./scripts/healthcheck.sh
-./scripts/pull-models.sh primary      # qwen3.8:27b (~18 GB, partial offload on 3060)
+./scripts/pull-models.sh primary      # ornith-9b (Q6_K; manual GGUF drop — see docs/04-models.md)
 ./scripts/benchmark.sh primary        # validates tokens/s on this box
 ```
 
-`pull-models.sh primary` also runs `scripts/install-aliases.sh` at the
-end, so the `qwen3-27b` Modelfile alias is ready to use in Open WebUI
-and the OpenAI-compat API as soon as the pull completes.
+`ornith-9b` is a manual GGUF drop, not an Ollama library tag: place
+`Ornith-1.5-9B-Q6_K.gguf` in `/bulk/models/`, then
+`./scripts/install-aliases.sh` creates the `ornith-9b` alias from
+`config/ollama/Modelfile.ornith-9b`. `pull-models.sh primary` skips the
+`ollama pull` for it and prints the drop reminder.
 
 Open `https://localhost/` (self-signed cert — accept in the browser).  
 Open WebUI listens on loopback `:8080`; nginx terminates TLS on `:443`.
@@ -113,14 +116,14 @@ Details and trade-offs: [docs/02-hardware-decisions.md](docs/02-hardware-decisio
 
 ## Status
 
-**v0.3.0** (in progress) — Qwen 3.8 generation. New default primary
-`qwen3.8:27b` (Qwen3.8-27B-Instruct, Apache 2.0, dense 27B, vision +
-image, 256K context, thinking on by default), with two Modelfile
-aliases: `qwen3-27b` (default chat) and `qwen3-27b-thinking` (reasoning
-on). `scripts/install-aliases.sh` closes the v0.2.x gap where recipes
-were checked in but never auto-applied. Partial offload on the RTX 3060
-(12 GB) — see `docs/04-models.md` for the speed/quality trade-off vs
-the v0.2.x 14B primary that ran at ~18 gen tok/s full-VRAM.
+**v0.4.0** (in progress) — Ornith 1.5 generation. New default primary
+`ornith-9b` (Ornith-1.5-9B Q6_K, hybrid attention, ~7.4 GB), replacing
+`qwen3.8:27b` as the daily driver. Ornith's hybrid attention keeps the
+KV cache small, so the 9B runs ~38 gen tok/s flat across 8K→64K (0 %
+cliff) full-VRAM on the RTX 3060 — vs the v0.3.x 27B primary at ~4 t/s
+@ 64K partial offload. `qwen3.8:27b` drops to `secondary` for agentic
+depth (256K, vision-language). See `docs/04-models.md` for the measured
+throughput table and the MoE `--cpu-moe` findings.
 
 **v0.2.2** — install + primary pull + healthcheck (8/0) + benchmark
 (~18 gen tok/s) + LAN chat UI validated on Ubuntu 26.04 + RTX 3060

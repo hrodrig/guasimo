@@ -161,9 +161,10 @@ note: ‘uint32_t’ is defined in header ‘<cstdint>’; this is probably
 ```
 
 GCC 15 stopped leaking fixed-width types through `<vector>` /
-`<memory>`. Upstream fixed it in ggml-org/llama.cpp#11796; our pin is
-older. `install.sh` patches the header after clone when `<cstdint>` is
-missing.
+`<memory>`. Upstream fixed it in ggml-org/llama.cpp#11796. **The current
+pin (b10630+) already carries the fix**, so this symptom only appears on
+manual rebuilds against an older ref; `install.sh` keeps a legacy
+`patch_llama_gcc15` safety net that no-ops when `<cstdint>` is present.
 
 Manual recovery if you hit this mid-build:
 

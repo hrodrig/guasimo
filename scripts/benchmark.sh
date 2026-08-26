@@ -12,11 +12,16 @@ set -euo pipefail
 NAME="${1:-primary}"
 
 # Map nicknames → registered Ollama tags (mirrors pull-models.sh).
-# `thinking` resolves to the same base as `primary`; the system prompt
+# `thinking` resolves to the same base as `secondary`; the system prompt
 # difference lives in config/ollama/Modelfile.qwen3-27b-thinking.
 declare -A MODELS=(
-  [primary]="qwen3.8:27b"
-  [secondary]="qwen2.5-coder:7b-instruct-q4_K_M"
+  # primary is a local alias created by install-aliases.sh from
+  # config/ollama/Modelfile.ornith-9b (manual GGUF drop, not an
+  # `ollama pull` tag). Ornith-1.5-9B Q6_K — see the Ornith section of
+  # docs/04-models.md for the Q6_K vs AD trade-off.
+  [primary]="ornith-9b"
+  # secondary is Qwen3.8-27B-Instruct, kept for deep agentic work.
+  [secondary]="qwen3.8:27b"
   [thinking]="qwen3.8:27b"
   [gemma]="gemma4:12b"
   [gemma4]="gemma4:12b"

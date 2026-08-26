@@ -1,0 +1,50 @@
+# Modelfile.ornith-9b — primary coding model (Ornith 1.5 generation).
+#
+# Ornith-1.5-9B at Q6_K. This is the new default primary as of v0.4.0,
+# replacing Qwen3.8-27B-Instruct. Ornith 1.5 uses hybrid attention
+# (full attention on early layers, linear/kv-cache-friendly attention on
+# the rest), so the KV cache stays small and the model holds its
+# generation rate as context grows instead of collapsing like a dense
+# model of the same size. Measured on the reference box (RTX 3060 12 GB,
+# 2026-08): ~37.9 gen tok/s @ 8K ctx → ~37.98 @ 64K ctx (0.0 % drop),
+# full VRAM, vs the previous qwen3-27b primary at ~4 t/s @ 64K partial
+# offload. This is the "fast default" wins on the day-to-day Go/C#/DevOps
+# workload; qwen3-27b stays as secondary for the deep 64K+ agentic
+# review/refactor path.
+#
+# This is a MANUAL GGUF drop, not an Ollama library tag. The GGUF must
+# be placed in /bulk/models/ first (see docs/04-models.md → "How to add
+# a new model"). The Q6_K build is preferred over the stock Q8_0 for the
+# daily driver because it fits 12 GB VRAM comfortably at 64K ctx while
+# retaining ~98 % of FP16 quality.
+#
+# Create with (run from the repo root, so the relative path to
+# PROMPT.coding.md resolves and the FROM path exists):
+#
+#   ollama create ornith-9b -f config/ollama/Modelfile.ornith-9b
+#
+# Reference: docs/04-models.md (Ornith 1.5 generation section).
+
+FROM /bulk/models/Ornith-1.5-9B-Q6_K.gguf
+
+# Ornith 1.5 uses a plain prompt template (no ChatML). The chat template
+# is set by the base model; do NOT override it here or thinking/tool
+# handling breaks.
+
+SYSTEM """$(cat config/ollama/PROMPT.coding.md)"""
+
+# Sampling — conservative for code. Lower temperature = more deterministic.
+PARAMETER temperature        0.2
+PARAMETER top_p              0.95
+PARAMETER top_k              40
+PARAMETER repeat_penalty     1.05
+
+# Context. 64K is the floor the box runs at for agentic work (Hermes
+# Agent requires it for tool use). Ornith 1.5's hybrid attention keeps
+# the 64K KV cache small enough to stay in VRAM on the 12 GB card, which
+# is exactly why this model does not show the context cliff.
+PARAMETER num_ctx            65536
+
+# `keep_alive` is no longer a valid Modelfile PARAMETER in Ollama 0.32.x.
+# Server-side default is set in /etc/systemd/system/ollama.service.d/override.conf
+# via OLLAMA_KEEP_ALIVE=10m.

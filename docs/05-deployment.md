@@ -152,7 +152,7 @@ Shape (real run on Ubuntu 26.04 + RTX 3060, v0.3.0):
 ```
 [phase 1/5] probe ............... NVIDIA hardware=y runtime=y
 [phase 2/5] packages ............ nvidia-driver-610 + toolkit already present
-[phase 3/5] llama.cpp ........... already built at b4568 (…); cuda build: y
+[phase 3/5] llama.cpp ........... already built at b10630 (…); cuda build: y
 [phase 4/5] ollama .............. already installed
 [phase 5/5] open-webui + nginx .. uv → CPython 3.12 → open-webui; TLS; nginx -t ok
 

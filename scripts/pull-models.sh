@@ -3,13 +3,18 @@
 #
 # Usage: scripts/pull-models.sh {primary|secondary|thinking|gemma|deepseek|all|<name>}
 #
-# - primary   : Qwen3.8-27B-Instruct (qwen3.8:27b, ~18 GB), the daily driver.
-#               Apache 2.0, dense 27B, vision-language, 256K ctx, thinking on
-#               by default. Partial offload on the RTX 3060 (12 GB).
-# - secondary : Qwen2.5-Coder-7B-Instruct  (Q4_K_M, ~5 GB), fast path. Full VRAM.
-# - thinking  : same Qwen3.8-27B base as primary, with thinking forced on via
-#               Modelfile (see config/ollama/Modelfile.qwen3-27b-thinking).
-#               Reuses the primary download; no extra pull weight.
+# - primary   : Ornith-1.5-9B (ornith-9b, Q6_K, ~7.4 GB), the daily driver.
+#               hybrid-attention 9B, plain prompt template, flat across
+#               8K→64K context (0.0 % drop), full VRAM on the RTX 3060.
+#               MANUAL GGUF DROP (see config/ollama/Modelfile.ornith-9b):
+#               place Ornith-1.5-9B-Q6_K.gguf in /bulk/models/ first —
+#               this script does not `ollama pull` it from any library.
+# - secondary : Qwen3.8-27B-Instruct (qwen3.8:27b, ~18 GB), agentic depth.
+#               Dense 27B, vision-language, 256K ctx; partial offload on
+#               the RTX 3060. Kept for deep 64K+ review/refactor where
+#               quality beats latency (was the v0.3.x primary).
+# - thinking  : same qwen3.8:27b base as secondary, with thinking forced
+#               on via Modelfile (config/ollama/Modelfile.qwen3-27b-thinking).
 # - gemma     : Gemma 4 12B (Ollama gemma4:12b) — agents / tools
 # - deepseek  : DeepSeek-Coder-V2-Lite (deepseek-coder-v2:lite) — backup coder
 # - all       : primary + secondary
@@ -42,9 +47,12 @@ WHAT="${1:-primary}"
 
 # Manifest: nickname → ollama pull name. Add new entries here, not in the body.
 declare -A MODELS=(
-  [primary]="qwen3.8:27b"
-  [secondary]="qwen2.5-coder:7b-instruct-q4_K_M"
-  # thinking reuses the primary base; it is the same GGUF, just a different
+  # primary is a MANUAL GGUF drop. The manifest value is the local alias
+  # that install-aliases.sh creates from config/ollama/Modelfile.ornith-9b
+  # after the GGUF is present in /bulk/models/. Not an `ollama pull` tag.
+  [primary]="ornith-9b"
+  [secondary]="qwen3.8:27b"
+  # thinking reuses the secondary base; it is the same GGUF, just a different
   # Modelfile alias (see config/ollama/Modelfile.qwen3-27b-thinking). Listed
   # in the manifest so the case branch and benchmark can resolve it.
   [thinking]="qwen3.8:27b"
@@ -79,13 +87,14 @@ fi
 EST_GB=0
 for t in "${TARGETS[@]}"; do
   case "$t" in
-    *qwen3.8*|*qwen3-8*)  EST_GB=$((EST_GB + 18)) ;;  # qwen3.8:27b Q4_K_M
-    *14b*)               EST_GB=$((EST_GB + 9)) ;;   # legacy Qwen2.5-Coder-14B
-    *7b*)                EST_GB=$((EST_GB + 5)) ;;   # Qwen2.5-Coder-7B
-    *32b*)               EST_GB=$((EST_GB + 20)) ;;  # legacy Qwen2.5-Coder-32B
-    *gemma4*|*12b*)      EST_GB=$((EST_GB + 8)) ;;   # Gemma 4 12B
-    *deepseek*)          EST_GB=$((EST_GB + 9)) ;;   # DeepSeek-Coder-V2-Lite
-    *)                   EST_GB=$((EST_GB + 10)) ;;  # unknown tag, conservative
+    *ornith-9b*|*ornith*9b*)                         EST_GB=$((EST_GB + 8))  ;;  # Ornith-1.5-9B Q6_K (manual drop)
+    *qwen3.8*|*qwen3-8*)                             EST_GB=$((EST_GB + 18)) ;;  # qwen3.8:27b Q4_K_M
+    *14b*)                                           EST_GB=$((EST_GB + 9))  ;;  # legacy Qwen2.5-Coder-14B
+    *7b*)                                            EST_GB=$((EST_GB + 5))  ;;  # Qwen2.5-Coder-7B
+    *32b*)                                           EST_GB=$((EST_GB + 20)) ;;  # legacy Qwen2.5-Coder-32B
+    *gemma4*|*12b*)                                  EST_GB=$((EST_GB + 8))  ;;  # Gemma 4 12B
+    *deepseek*)                                      EST_GB=$((EST_GB + 9))  ;;  # DeepSeek-Coder-V2-Lite
+    *)                                               EST_GB=$((EST_GB + 10)) ;;  # unknown tag, conservative
   esac
 done
 FREE_GB=$(df -BG --output=avail "${BULK_DIR}" | tail -1 | tr -dc '0-9')
@@ -102,6 +111,15 @@ run_ollama() {
 
 echo "  pull log: ${PULL_LOG}"
 for t in "${TARGETS[@]}"; do
+  if [ "${t}" = "ornith-9b" ]; then
+    # `primary` is a MANUAL GGUF drop, not an Ollama library tag. There is
+    # nothing to `ollama pull`; the alias is created by install-aliases.sh
+    # from config/ollama/Modelfile.ornith-9b once the GGUF is in /bulk/models/.
+    echo
+    echo ">>> primary (ornith-9b) is a manual GGUF drop — skipping ollama pull"
+    echo "    place Ornith-1.5-9B-Q6_K.gguf in ${BULK_DIR}/ and re-run install-aliases.sh"
+    continue
+  fi
   echo
   echo ">>> pulling ${t}"
   if ! run_ollama pull "${t}" 2>&1 | tee -a "${PULL_LOG}"; then

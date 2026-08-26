@@ -10,28 +10,55 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
 ## [Unreleased]
 
 ### Added
-- `DEFAULT_MODELS` in `deploy/systemd/open-webui.service` — the Open
-  WebUI chat model picker is now pre-selected, closing the "wire model
-  picker into the per-conversation default" v0.4 gap. Settled on
-  `coder-14b` (see Changed below): the fast secondary alias is the
-  right default for day-to-day coding, while the primary `qwen3-27b`
-  stays one explicit selection away for deep/long-context work.
-  Activated on re-run of `deploy/install.sh`; the aliases are created
-  by `install-aliases.sh` after `pull-models.sh`.
+- New primary model **Ornith-1.5-9B** (`ornith-9b`, Q6_K) with a
+  `config/ollama/Modelfile.ornith-9b` recipe and an AD-requant variant
+  `config/ollama/Modelfile.ornith-9b-ad` (`ornith-9b-ad`,
+  `Ornith-1.5-9B-AD-Q8_0-Q6_K.gguf`). Both are **manual GGUF drops**,
+  not Ollama library tags; `install-aliases.sh` now distinguishes a
+  local-GGUF `FROM` (checks the file exists on disk) from a library tag
+  (checks the base family is pulled).
+- `pull-models.sh primary` now skips `ollama pull` for Ornith and prints
+  the drop reminder (place `Ornith-1.5-9B-Q6_K.gguf` in `/bulk/models/`,
+  re-run `install-aliases.sh`). The disk-budget estimate gains an
+  `*ornith*9b*` → ~8 GB branch.
+- `DEFAULT_MODELS` in `deploy/systemd/open-webui.service` (already
+  introduced earlier in this window) now targets `ornith-9b`, so the
+  chat picker pre-selects the new primary.
+- `scripts/serve-35b.sh` — first-class quality path for the
+  Ornith-1.5-35B-A3B MoE. Runs `llama-server` with `--cpu-moe` (experts
+  in RAM, dense+attention on VRAM → 23.5 tok/s flat 8K→64K, 0 % drop) on
+  `:8081`, OpenAI-compatible, with a fail-fast guard if the binary
+  predates the `--cpu-moe` flag. `docs/04-models.md` gains a
+  **"How to switch the model"** section mapping each model to its
+  endpoint and showing how to point Open WebUI at the 35B via the OpenAI
+  connection.
 
 ### Changed
-- `DEFAULT_MODELS` switched `qwen3-27b` → `coder-14b` after measuring
-  throughput on the reference box: `coder-14b` runs 33 gen t/s @ 8K ctx
-  (full VRAM) vs `qwen3-27b` at 4 t/s @ 64K. The KV cache is the
-  differentiator, not the model size — `coder-14b` collapses to 7 t/s
-  at 64K ctx. Added a measured-throughput table to `docs/04-models.md`.
-- `docs/04-models.md`, `docs/08-troubleshooting.md`,
-  `docs/02-hardware-decisions.md`, `config/ollama/Modelfile.qwen3-27b`:
-  corrected the primary's steady-state generation rate to **~4 gen
-  tok/s @ 64K `num_ctx`** (prompt eval ~35 tok/s), as measured on the
-  reference box 2026-08-23. The earlier "~5 t/s @ 64K" / "3-5 tok/s"
-  figures were optimistic; the re-measured 64K number is what Hermes
-  Agent's 64K context floor actually sees.
+- **Primary swapped `qwen3.8:27b` → `ornith-9b`** (Ornith-1.5-9B Q6_K,
+  v0.4.0). Measured on the reference box (2026-08-25, Go prompt,
+  `num_predict` ~300, warm load): `ornith-9b` runs **37.91 gen t/s @ 8K
+  → 37.98 @ 64K (0 % drop)** full-VRAM thanks to hybrid attention, vs
+  the 27B dense primary at ~4 t/s @ 64K partial offload. `qwen3.8:27b`
+  demotes to `secondary` (agentic depth, 256K, vision-language).
+- `docs/04-models.md` — restructured around the Ornith 1.5 generation:
+  full measured-throughput table (9B stock + AD, 35B MoE via Ollama and
+  `--cpu-moe`, 14B, 27B, UD dynamic quant), the MoE/MTP operator note
+  (`--cpu-moe` = 23.5 t/s flat 8K→64K but ~25 % slower peak; `draft-mtp`
+  unsupported on `qwen35moe`, no MTP head; `ngram-map-k4v` gains only
+  ~7 % on a cold prompt), and the fixed v0.3.x "How to add a new model"
+  duplication.
+- `scripts/pull-models.sh`, `scripts/benchmark.sh` — manifest updated:
+  `primary` → `ornith-9b`, `secondary` → `qwen3.8:27b` (was
+  `qwen2.5-coder:7b-instruct-q4_K_M`).
+- `README.md` — Features, Quick start, and Status sections now describe
+  the Ornith primary and the manual-drop flow.
+- llama.cpp pin bumped `b4568` → `b10630` (commit `d222767`) in
+  `deploy/install.sh`. `b10630` is the first ref validated on the
+  reference box that ships `--cpu-moe` (PR #15077, Aug 2025), which
+  `serve-35b.sh` depends on; it also carries the `<cstdint>` fix
+  (#11796), so the GCC-15 header patch is now a no-op safety net.
+  `docs/05-deployment.md` sample output and `docs/08-troubleshooting.md`
+  updated to match.
 
 ### Fixed
 - Reference box validation closed (2026-08-23): `pull-models.sh

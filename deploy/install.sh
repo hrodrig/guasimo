@@ -9,7 +9,14 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 # Pinned versions
 # ---------------------------------------------------------------------------
-LLAMA_CPP_REF="${LLAMA_CPP_REF:-b4568}"              # llama.cpp git SHA / tag
+LLAMA_CPP_REF="${LLAMA_CPP_REF:-b10630}"             # llama.cpp git SHA / tag.
+# b10630 (commit d222767) is pinned because it is the first ref validated
+# on the reference box that ships `--cpu-moe` (MoE expert CPU offload,
+# PR #15077, Aug 2025) — the flag `scripts/serve-35b.sh` depends on for
+# the Ornith-1.5-35B quality path. The previous pin b4568 predates it.
+# This ref also carries the `<cstdint>` fix (#11796), so the GCC-15
+# header patch in docs/08-troubleshooting.md is no longer needed for
+# fresh builds.
 # Ollama: minimum 0.32.12 to support qwen3.8:27b (Aug 2026 multimodal /
 # thinking generation). 0.32.14 adds WebP image transcoding for
 # llama-server and a Qwen renderer fix; the install script tries apt
@@ -332,7 +339,7 @@ git_llama() {
 
 # Build if missing or SHA drifted. Accept either the install symlink or
 # the cmake output path (operator may have built by hand mid-install).
-# Compare resolved commit SHAs — LLAMA_CPP_REF is often a tag (b4568)
+# Compare resolved commit SHAs — LLAMA_CPP_REF is often a tag (b10630)
 # while rev-parse --short HEAD is a commit id (a4417dd); string equality
 # on those never matches and forced a rebuild every run.
 NEED_BUILD=y
@@ -358,8 +365,9 @@ fi
 
 # GCC 15 (Ubuntu 26.04) no longer transitively provides uint32_t via
 # <vector>/<memory>. llama.cpp b4568 predates upstream fix #11796
-# (add #include <cstdint> to src/llama-mmap.h). Patch in place when
-# missing so the pin stays compatible with this toolchain.
+# (add #include <cstdint> to src/llama-mmap.h). The pinned ref now
+# carries it, so this is a legacy safety net that no-ops on fresh
+# builds; kept for manual rebuilds against older SHAs.
 patch_llama_gcc15() {
   local hdr="${LLAMA_SRC_DIR}/src/llama-mmap.h"
   [ -f "${hdr}" ] || return 0

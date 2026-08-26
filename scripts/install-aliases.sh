@@ -68,14 +68,29 @@ for mf in "${MODELDIR}"/Modelfile.*; do
   #   Modelfile.qwen3-27b-thinking -> qwen3-27b-thinking
   alias_name="${mf##*/Modelfile.}"
 
-  # Check the base family (everything before the ':') is present locally.
-  # We match on family, not exact tag, so a Modelfile pinned to
-  # `qwen3.8:27b` still works when the local base is `qwen3.8:latest`.
-  base_family="${base%%:*}"
-  if ! grep -qF "${base_family}" <<<"${LOCAL_BASES}"; then
-    echo "  skip ${alias_name} (base family ${base_family} not pulled yet)"
-    SKIPPED=$((SKIPPED + 1))
-    continue
+  # Two FROM shapes are supported:
+  #   1. A library tag (`qwen3.8:27b`) — check the base family is pulled.
+  #   2. A local GGUF path (`/bulk/models/Foo.gguf`) — a manual drop; the
+  #      blob must already be imported into Ollama (its content hash is the
+  #      model identity, not the path). Check the file exists on disk and
+  #      let `ollama create` resolve the import.
+  if [[ "${base}" == /* ]]; then
+    # Local GGUF path. Ollama needs the file present; `ollama create`
+    # imports the blob and links it into /data/models on first use.
+    if [ ! -f "${base}" ]; then
+      echo "  skip ${alias_name} (GGUF not present: ${base})"
+      SKIPPED=$((SKIPPED + 1))
+      continue
+    fi
+  else
+    # Library tag. Match on family, not exact tag, so a Modelfile pinned to
+    # `qwen3.8:27b` still works when the local base is `qwen3.8:latest`.
+    base_family="${base%%:*}"
+    if ! grep -qF "${base_family}" <<<"${LOCAL_BASES}"; then
+      echo "  skip ${alias_name} (base family ${base_family} not pulled yet)"
+      SKIPPED=$((SKIPPED + 1))
+      continue
+    fi
   fi
 
   echo "  creating alias: ${alias_name}  (FROM ${base})"

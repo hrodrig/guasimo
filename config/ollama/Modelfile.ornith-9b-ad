@@ -1,0 +1,28 @@
+# Modelfile.ornith-9b-ad — Ornith 1.5 9B dynamic-quant variant (AD).
+#
+# Ornith-1.5-9B with the AtomicChat/DeepReinforce "AD" static-sparse
+# (Q8_0 experts layering) requantisation: Ornith-1.5-9B-AD-Q8_0-Q6_K.
+# Slightly higher quality than the stock Q6_K at the cost of ~1.5 GB and
+# a couple fewer tok/s. Measured on the reference box: ~35.6 gen tok/s
+# @ 8K → ~35.6 @ 64K (0.0 % drop), still flat but ~6 % slower than the
+# stock Q6_K primary.
+#
+# Use this when the bottleneck is output quality rather than latency on
+# a context that is close to the model's comfort limit. The stock Q6_K
+# (`Modelfile.ornith-9b`) remains the default primary.
+#
+# Manual GGUF drop: place the GGUF in /bulk/models/ first.
+#
+#   ollama create ornith-9b-ad -f config/ollama/Modelfile.ornith-9b-ad
+
+FROM /bulk/models/Ornith-1.5-9B-AD-Q8_0-Q6_K.gguf
+
+SYSTEM """$(cat config/ollama/PROMPT.coding.md)"""
+
+PARAMETER temperature        0.2
+PARAMETER top_p              0.95
+PARAMETER top_k              40
+PARAMETER repeat_penalty     1.05
+PARAMETER num_ctx            65536
+
+# keep_alive is server-side (OLLAMA_KEEP_ALIVE=10m), not a Modelfile PARAMETER.
