@@ -321,6 +321,16 @@ if [ "${USE_CUDA}" = n ]; then
   CMAKE_FLAGS+=("-DGGML_NATIVE=ON")
 fi
 
+# Cap parallel build jobs at (nproc - 2), floor 1. A bare `--parallel`
+# spawns one job per core; on a 12-core box the CUDA compile floods the
+# machine (load avg >100, `ptxas`/`cicc` saturating every core) and starves
+# nginx + Open WebUI that are already live, so the WebUI stops answering
+# while the build runs. Leaving two cores free keeps the frontend
+# responsive; CUDA translation units are largely single-threaded per
+# `ptxas` invocation, so wall-clock impact is minimal.
+BUILD_JOBS="${BUILD_JOBS:-$(( $(nproc) - 2 ))}"
+[ "${BUILD_JOBS}" -lt 1 ] && BUILD_JOBS=1
+
 # Root runs this script; phase 2 chowns INSTALL_ROOT to SERVICE_USER, so
 # git refuses the tree with "fatal: detected dubious ownership". Mark the
 # tree safe for root (covers our git calls AND cmake's build_info target,
@@ -404,7 +414,7 @@ if [ "${NEED_BUILD}" = y ]; then
   patch_llama_gcc15
   cmake -S "${LLAMA_SRC_DIR}" -B "${LLAMA_SRC_DIR}/build" \
         -DCMAKE_BUILD_TYPE=Release "${CMAKE_FLAGS[@]}"
-  cmake --build "${LLAMA_SRC_DIR}/build" --parallel
+  cmake --build "${LLAMA_SRC_DIR}/build" --parallel "${BUILD_JOBS}"
   strip "${LLAMA_SRC_DIR}/build/bin/llama-server" \
         "${LLAMA_SRC_DIR}/build/bin/llama-cli"
 fi
