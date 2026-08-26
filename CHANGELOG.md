@@ -51,7 +51,10 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
   `primary` → `ornith-9b`, `secondary` → `qwen3.8:27b` (was
   `qwen2.5-coder:7b-instruct-q4_K_M`).
 - `README.md` — Features, Quick start, and Status sections now describe
-  the Ornith primary and the manual-drop flow.
+  the Ornith primary and the manual-drop flow. Hero screenshot refreshed
+  to show Ornith-9b selected in Open WebUI, and a new
+  `docs/assets/prompt-go-ornith-9b.png` (Go prompt answered with ~38
+  tok/s flat 8K→64K) added under "Why guasimo".
 - llama.cpp pin bumped `b4568` → `b10630` (commit `d222767`) in
   `deploy/install.sh`. `b10630` is the first ref validated on the
   reference box that ships `--cpu-moe` (PR #15077, Aug 2025), which
@@ -64,9 +67,9 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
 - Reference box validation closed (2026-08-23): `pull-models.sh
   primary` completed, `qwen3-27b` alias answers in Open WebUI,
   `benchmark.sh primary` reports 4 gen tok/s @ 64K, `healthcheck.sh`
-  8/0. Only the manual screenshots
-  (`docs/assets/ollama-pull-qwen38-27b-ok.png` and the refreshed
-  `open-webui-lan-192-168-10-69.png`) remain as a follow-up.
+  8/0. Manual screenshots refreshed 2026-08-25: hero now shows
+  Ornith-9b selected, plus a new Go-prompt capture
+  (`docs/assets/prompt-go-ornith-9b.png`).
 
 ### Removed
 - (none yet)

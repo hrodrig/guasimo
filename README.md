@@ -10,7 +10,7 @@
 
 **Repo:** [github.com/hrodrig/guasimo](https://github.com/hrodrig/guasimo) · **Releases:** [GitHub Releases](https://github.com/hrodrig/guasimo/releases) · **Spec:** [SPECIFICATIONS.md](SPECIFICATIONS.md) · **Docs:** [docs/00-index.md](docs/00-index.md) · **Changelog:** [CHANGELOG.md](CHANGELOG.md)
 
-![Open WebUI on the guasimo LAN workstation](docs/assets/open-webui-lan-192-168-10-69.png)
+![Open WebUI on the guasimo LAN workstation, Ornith-9b selected as the default model](docs/assets/open-webui-lan-192-168-10-69.png)
 
 **G**raphical **U**tility for **A**I **S**erver **I**nference of **M**odels, **O**pen-source.
 
@@ -42,6 +42,8 @@ A self-hosted local LLM coding workstation. One command takes a fresh Ubuntu 26.
 - **One install path** — `deploy/install.sh` detects GPU, builds llama.cpp, and wires systemd + nginx TLS.
 - **IDE-ready API** — Ollama exposes an OpenAI-compatible HTTP surface for Cursor, Continue, and friends.
 - **Built for coding** — primary focus is generation, review, explanation, and translation across Go, C#, and DevOps tooling.
+
+![Ornith-9b answering a Go prompt on the LAN workstation — hybrid attention holds ~38 tok/s flat from 8K to 64K context](docs/assets/prompt-go-ornith-9b.png)
 
 ## Features
 
