@@ -108,13 +108,17 @@ because `u.Age > 30` already excludes every value ≤ 30, so only a
 wrong-type `"age":"forty"` is a genuine anomaly (which the parser already
 rejects). It closed by separating *malformed* input (syntax → parse error)
 from *erroneous* data (business rule → optional validation beyond the
-prompt), and handed back a fused final version picking up Minimax's
+prompt), and handed back a fused final version picking up MiniMax M3's
 `json.Decoder`/`io.EOF`/`(0, nil)`.
 
 That is the signal a daily driver needs beyond tok/s: a reviewer that
 says "yours is right, here is why, and here is the one thing you both
 missed" — and, when pushed, concedes the true points and pushes back on
 the weak one — rather than agreeing to agree.
+
+The full prompts and the three verbatim outputs (Ornith, MiniMax M3, Kimi K3)
+are preserved in
+[`docs/appendix-code-review-assertiveness.md`](appendix-code-review-assertiveness.md).
 
 ### Validated pull (Ubuntu 26.04 + RTX 3060)
 

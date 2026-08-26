@@ -21,6 +21,12 @@ files here are the contract that surface must honour.
 | 08| `08-troubleshooting.md`       | Common failures and their first response             |
 | 09| `09-roadmap.md`               | v0.2 / v0.3 / v1.0 plans                             |
 
+## Appendices
+
+| File                                    | Purpose                                              |
+|-----------------------------------------|------------------------------------------------------|
+| `appendix-code-review-assertiveness.md` | Verbatim peer-review evidence (Ornith / MiniMax M3 / Kimi K3) for the qualitative probe in `04-models.md`
+
 ## Conventions used in this repo
 
 - All commands assume the repository root unless prefixed with `cd ...`.
