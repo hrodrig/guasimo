@@ -80,6 +80,42 @@ at 8K ctx to ~7.6 t/s at 64K ctx because the 64K cache no longer fits in
 ~38 t/s at both 8K and 64K. Rule of thumb — **pick the model by task, and
 don't raise `num_ctx` beyond what the task's files actually need.**
 
+### Code-review assertiveness (qualitative, 2026-08-25)
+
+Throughput is not the whole story. As the daily driver, Ornith 9B must
+also *review* code without flattering or folding. In a peer-review probe
+(Ornith's own Go answer → a second model's stricter rewrite → Ornith
+re-reads it), Ornith 9B:
+
+- **conceded what was genuinely better** — `json.Decoder` streaming,
+  empty-file `(0, nil)`, edge-case tests — instead of defending its first
+  draft;
+- **caught a real bug the stricter version missed**: a single
+  `decoder.Decode(&users)` reads one JSON value and silently ignores any
+  trailing data (`[{"age":40}] junk` parses without error). The strict fix
+  is a second decode that must return `io.EOF`;
+- **flagged its own test gap** — noting the trailing-data case was not
+  covered by the suite;
+- **separated design convention from defect** — `(0, nil)` vs error on
+  "no matches" is caller semantics, not a bug.
+
+In a second round (a third model, Kimi K3, graded the output 8.5/10 and
+raised three refinements), Ornith 9B **discriminated rather than deferred**:
+it accepted the two fair points (`(0, nil)` for no matches; the doc-comment
+over-explains an "output code only" prompt) with real self-critique, and
+pushed back on the third — negative/null age validation is not a defect
+because `u.Age > 30` already excludes every value ≤ 30, so only a
+wrong-type `"age":"forty"` is a genuine anomaly (which the parser already
+rejects). It closed by separating *malformed* input (syntax → parse error)
+from *erroneous* data (business rule → optional validation beyond the
+prompt), and handed back a fused final version picking up Minimax's
+`json.Decoder`/`io.EOF`/`(0, nil)`.
+
+That is the signal a daily driver needs beyond tok/s: a reviewer that
+says "yours is right, here is why, and here is the one thing you both
+missed" — and, when pushed, concedes the true points and pushes back on
+the weak one — rather than agreeing to agree.
+
 ### Validated pull (Ubuntu 26.04 + RTX 3060)
 
 Ornith 1.5 is not an Ollama library tag, so it is a **manual GGUF drop**,
