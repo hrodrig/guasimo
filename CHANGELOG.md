@@ -10,6 +10,20 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
 ## [Unreleased]
 
 ### Added
+- (none yet)
+
+### Changed
+- (none yet)
+
+### Fixed
+- (none yet)
+
+### Removed
+- (none yet)
+
+## [0.4.0] - 2026-08-25
+
+### Added
 - New primary model **Ornith-1.5-9B** (`ornith-9b`, Q6_K) with a
   `config/ollama/Modelfile.ornith-9b` recipe and an AD-requant variant
   `config/ollama/Modelfile.ornith-9b-ad` (`ornith-9b-ad`,
@@ -359,7 +373,8 @@ Initial scaffolding. A new operator can read `SPECIFICATIONS.md` and
 - Firewall is **not** opened automatically. `scripts/open-firewall.sh`
   is the explicit, audited path.
 
-[Unreleased]: https://github.com/hrodrig/guasimo/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/hrodrig/guasimo/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/hrodrig/guasimo/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/hrodrig/guasimo/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/hrodrig/guasimo/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/hrodrig/guasimo/compare/v0.2.1...v0.2.2

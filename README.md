@@ -1,6 +1,6 @@
 # guasimo
 
-[![Version](https://img.shields.io/badge/version-0.2.2-blue)](https://github.com/hrodrig/guasimo/releases)
+[![Version](https://img.shields.io/badge/version-0.4.0-blue)](https://github.com/hrodrig/guasimo/releases)
 [![Release](https://img.shields.io/github/v/release/hrodrig/guasimo)](https://github.com/hrodrig/guasimo/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Shell](https://img.shields.io/badge/shell-bash-4EAA25?logo=gnubash&logoColor=white)](https://www.gnu.org/software/bash/)
@@ -118,7 +118,7 @@ Details and trade-offs: [docs/02-hardware-decisions.md](docs/02-hardware-decisio
 
 ## Status
 
-**v0.4.0** (in progress) — Ornith 1.5 generation. New default primary
+**v0.4.0** — Ornith 1.5 generation. New default primary
 `ornith-9b` (Ornith-1.5-9B Q6_K, hybrid attention, ~7.4 GB), replacing
 `qwen3.8:27b` as the daily driver. Ornith's hybrid attention keeps the
 KV cache small, so the 9B runs ~38 gen tok/s flat across 8K→64K (0 %
