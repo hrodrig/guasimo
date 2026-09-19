@@ -120,6 +120,12 @@ The full prompts and the three verbatim outputs (Ornith, MiniMax M3, Kimi K3)
 are preserved in
 [`docs/appendix-code-review-assertiveness.md`](appendix-code-review-assertiveness.md).
 
+Reproduce the compile gate any time:
+
+```bash
+ORNITH_BASE=http://192.168.10.10:8081/v1 ./scripts/eval-go-ornith.sh
+```
+
 ### Validated pull (Ubuntu 26.04 + RTX 3060)
 
 Ornith 1.5 is not an Ollama library tag, so it is a **manual GGUF drop**,
@@ -217,8 +223,9 @@ of *which endpoint you talk to*, not a global re-point:
 
 | Model                        | Talk to                | How to start it                                    |
 |------------------------------|------------------------|----------------------------------------------------|
-| **Ornith 9B** (primary)      | Ollama `:11434`        | default — `./scripts/pull-models.sh primary`       |
-| **Ornith 35B** (quality)     | llama-server `:8081`   | `./scripts/serve-35b.sh`                           |
+| **Ornith 9B** (primary)      | Ollama `:11434` *or* llama-server `:8081` on AMD lab | default / manual serve |
+| **Ornith 35B** (quality)     | llama-server `:8081` (script) / `:8082` (AMD lab) | `./scripts/serve-35b.sh` |
+| **Bonsai 2 27B** (dense / reasoning) | PrismML llama-server `:8083` | `./scripts/serve-bonsai.sh` (needs fork) |
 | **Qwen3-27B** (agentic/multimodal) | Ollama `:11434`  | `./scripts/pull-models.sh secondary`               |
 | **Coder 7B** (fast fallback)  | Ollama `:11434`        | `./scripts/pull-models.sh secondary-fast`          |
 
@@ -241,11 +248,73 @@ in Open WebUI's admin settings:
 Switching back is just selecting `ornith-9b` in the same picker — no
 reconfiguration. Both servers stay up independently.
 
+### Prism ML Ternary Bonsai 2 27B (optional dense-intelligence path)
+
+[Bonsai 2 27B](https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-gguf)
+is a ternary (~1.72 bpw) pack of Qwen3.8-27B: ~5.9 GB (`PTQ1_0`) or
+~7.2 GB (`PQ2_0`), claiming ~98 % of FP16 on Prism's thinking suite.
+Fits the AMD mini-PC with large RAM headroom vs Ornith-35B Q4 (~20 GB).
+
+**Hard requirement:** stock llama.cpp / Ollama cannot run these GGUFs.
+guasimo keeps a *second* binary from the
+[PrismML-Eng/llama.cpp](https://github.com/PrismML-Eng/llama.cpp) fork
+(`llama-server-bonsai`), built by `scripts/build-bonsai-llama.sh`. The
+main `llama-server` and Ollama path stay on the pinned upstream ref.
+
+```bash
+sudo ./scripts/build-bonsai-llama.sh          # or INSTALL_BONSAI=1 on install
+# Place Ternary-Bonsai-2-27B-PQ2_0.gguf in /bulk/models/ (see download options below)
+./scripts/pull-models.sh bonsai               # prints the operator checklist
+./scripts/serve-bonsai.sh                     # :8083, alias bonsai-2-27b
+# defaults: ctx 32K, --no-repack (override with LLAMA_NO_REPACK=0)
+```
+
+`serve-bonsai.sh` passes **`--no-repack`** by default. ggml CPU
+repacking rewrites weights into a SIMD layout in fresh RAM (not mmap).
+On the AMD lab the Prism fork SIGSEGV'd in
+`ggml_backend_cpu_repack_buffer_set_tensor` while loading Ternary PQ2_0
+— same failure class as llama.cpp allocating a full repack buffer for a
+model that does not fit, then quitting (or crashing) unless you pass
+`-nr` / `--no-repack`. Trade-off: slightly slower CPU matmul vs a
+working load. `LLAMA_NO_REPACK=0` restores stock repack if you need it.
+
+### Downloading the Bonsai GGUF
+
+Prefer the Hugging Face CLI when available:
+
+```bash
+hf download prism-ml/Ternary-Bonsai-2-27B-gguf \
+  Ternary-Bonsai-2-27B-PQ2_0.gguf --local-dir /bulk/models/
+```
+
+On Ubuntu 26.04, system Python is PEP 668–managed (`pip install --user`
+is blocked). Fallbacks:
+
+1. Install into the stack venv, then use that interpreter:
+   `/opt/guasimo/webui-venv/bin/pip install huggingface_hub` and
+   `hf_hub_download(...)` via that Python.
+2. Or `curl` the resolve URL (resumable; good inside `screen`):
+
+```bash
+curl -L --fail --retry 8 --retry-delay 10 -C - \
+  -o /bulk/models/Ternary-Bonsai-2-27B-PQ2_0.gguf \
+  "https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-gguf/resolve/main/Ternary-Bonsai-2-27B-PQ2_0.gguf"
+sudo chown ollama:ollama /bulk/models/Ternary-Bonsai-2-27B-PQ2_0.gguf
+```
+
+Open WebUI OpenAI connection: `http://127.0.0.1:8083/v1`, model
+`bonsai-2-27b`. Optional vision: set `MMPROJ=/bulk/models/Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf`.
+Default pack is `PQ2_0` (faster prompt processing); `BONSAI_PACK=PTQ1_0`
+for the smaller footprint. Pin: `prism-b10687-5d80cff` (override with
+`PRISM_LLAMA_CPP_REF`).
+
 ### When to use which
 
 - **Everyday coding / fastest iteration** → Ornith 9B (38 tok/s flat).
 - **Deep refactors, tricky concurrency, idiomatic-correct Go** → 35B
   (accept ~23.5 tok/s for the best local code quality).
+- **Dense 27B reasoning in ~6–7 GB** → Bonsai 2 (`serve-bonsai.sh`) when
+  the PrismML fork is built; not a drop-in for Ollama.
 - **Multimodal / thinking / agentic depth** → Qwen3-27B (slow @ 64K).
 
 
@@ -386,6 +455,7 @@ Recipes in this repo (v0.4.0+):
 |---------------------------------------------------|------------------------|----------------------------------------|--------------------------|
 | `config/ollama/Modelfile.ornith-9b`               | `ornith-9b`            | `/bulk/models/Ornith-1.5-9B-Q6_K.gguf` | **Primary** (manual drop) |
 | `config/ollama/Modelfile.ornith-9b-ad`            | `ornith-9b-ad`         | `/bulk/models/Ornith-1.5-9B-AD-Q8_0-Q6_K.gguf` | Primary AD requant (manual drop) |
+| `config/ollama/Modelfile.ornith-35b`              | `ornith-35b`           | `/bulk/models/Ornith-1.5-35B-Q4_K_M.gguf` | Quality path (manual drop; also `serve-35b.sh`) |
 | `config/ollama/Modelfile.qwen3-27b`               | `qwen3-27b`            | `qwen3.8:27b`                          | Secondary (agentic depth) |
 | `config/ollama/Modelfile.qwen3-27b-thinking`      | `qwen3-27b-thinking`   | `qwen3.8:27b`                          | Same base, thinking on |
 | `config/ollama/Modelfile.coder-7b`                | `coder-7b`             | `qwen2.5-coder:7b`                     | Low-latency fallback |

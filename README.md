@@ -6,6 +6,7 @@
 [![Shell](https://img.shields.io/badge/shell-bash-4EAA25?logo=gnubash&logoColor=white)](https://www.gnu.org/software/bash/)
 [![Ubuntu](https://img.shields.io/badge/Ubuntu-26.04-E95420?logo=ubuntu&logoColor=white)](https://ubuntu.com/)
 [![CUDA](https://img.shields.io/badge/CUDA-RTX%203060-76B900?logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-zone)
+[![Vulkan](https://img.shields.io/badge/Vulkan-Radeon%20760M-AC162C?logo=vulkan&logoColor=white)](https://www.vulkan.org/)
 [![gghstats clones](https://gghstats.hermesrodriguez.com/api/v1/badge/hrodrig/guasimo?metric=clones)](https://gghstats.hermesrodriguez.com/hrodrig/guasimo)
 
 **Repo:** [github.com/hrodrig/guasimo](https://github.com/hrodrig/guasimo) · **Releases:** [GitHub Releases](https://github.com/hrodrig/guasimo/releases) · **Spec:** [SPECIFICATIONS.md](SPECIFICATIONS.md) · **Docs:** [docs/00-index.md](docs/00-index.md) · **Changelog:** [CHANGELOG.md](CHANGELOG.md)
@@ -47,26 +48,34 @@ A self-hosted local LLM coding workstation. One command takes a fresh Ubuntu 26.
 
 ## Features
 
-- Dual inference path: NVIDIA CUDA when `nvidia-smi` is ready; CPU fallback always available
+- Accelerator auto-detect: **CUDA** (NVIDIA) → **Vulkan** (AMD Radeon iGPU,
+  Mesa radv/aco) → **CPU** fallback
 - Deferred CUDA build after a fresh driver install (re-run `install.sh` post-reboot)
+- AMD thermal soft-cap (`guasimo-thermal.service` + `thermal-guard.sh`, 80 °C)
 - systemd units for the stack; nginx terminates TLS on `:443` (self-signed by default)
 - `healthcheck.sh`, `pull-models.sh`, and `benchmark.sh` for day-one validation
-- `install-aliases.sh` keeps the Modefile recipes in `config/ollama/` in sync
+- `install-aliases.sh` keeps the Modelfile recipes in `config/ollama/` in sync
   with the running Ollama (auto-runs at the end of `pull-models.sh`)
 - Default primary is Ornith-1.5-9B (`ornith-9b`, Q6_K): hybrid-attention 9B,
   flat throughput across 8K→64K context (0 % cliff), full VRAM on the
   RTX 3060 (12 GB). A manual GGUF drop — see `docs/04-models.md` for the
   speed/quality trade-off and the "how to add a model" flow.
+- Optional quality paths: Ornith-35B (`serve-35b.sh`) and Prism ML Ternary
+  Bonsai 2 (`serve-bonsai.sh`, PrismML llama.cpp fork, `:8083`)
 - Optional model nicknames: `secondary` (Qwen3.8-27B, 256K agentic depth),
-  `thinking` (Qwen3.8-27B with reasoning on), `gemma`, `deepseek`
+  `thinking` (Qwen3.8-27B with reasoning on), `gemma`, `deepseek`, `large`,
+  `bonsai`
 - Docs-first contract: `SPECIFICATIONS.md` + `docs/` stay authoritative
 
 ## Prerequisites
 
 - **OS:** Ubuntu 26.04 (validated target)
-- **GPU:** NVIDIA with working driver preferred (reference box: RTX 3060 12 GB). CPU-only still works, slower.
-- **Disk:** room for GGUF blobs (primary pull is on the order of ~10 GB)
-- **Pre-flight:** if `nvidia-smi` is missing, add the NVIDIA CUDA apt repo first — see [docs/05-deployment.md](docs/05-deployment.md)
+- **GPU:** NVIDIA CUDA *or* AMD Radeon iGPU (Vulkan). Reference boxes:
+  RTX 3060 12 GB, and AMD mini-PC Ryzen 7640HS + Radeon 760M (76 GB RAM).
+  CPU-only still works, slower.
+- **Disk:** room for GGUF blobs (primary ~8 GB; optional 35B ~20 GB; Bonsai ~7 GB)
+- **Pre-flight (NVIDIA):** if `nvidia-smi` is missing, add the NVIDIA CUDA
+  apt repo first — see [docs/05-deployment.md](docs/05-deployment.md)
 
 ## Quick start
 
@@ -102,7 +111,9 @@ A model is a named recipe + a GGUF blob. Ollama owns the recipe; llama.cpp does 
 
 ## Hardware target
 
-Validated on a **real reference workstation** (not a cloud VM):
+Two validated boxes (not cloud VMs):
+
+### Reference — NVIDIA tower
 
 ![guasimo reference workstation — Intel Core i5 + EVGA RTX, NZXT AIO](docs/assets/guasimo-workstation-tower.png)
 
@@ -113,8 +124,22 @@ Validated on a **real reference workstation** (not a cloud VM):
 | RAM | 32 GB DDR4 | KV cache, OS, IDE, browser |
 | Storage | 2 TB SSD + 500 GB NVMe | Cold GGUF store + hot runtime/models/logs |
 | OS | Ubuntu 26.04 | LTS kernel, modern CUDA 12.x packages |
+| LAN (docs screenshots) | `192.168.10.69` | Historical hero / LAN UI captures |
 
-Details and trade-offs: [docs/02-hardware-decisions.md](docs/02-hardware-decisions.md).
+### Secondary — AMD mini-PC lab
+
+![guasimo AMD lab — Minisforum EliteMini, Ryzen 5 7640HS + Radeon 760M](docs/assets/guasimo-elitemini-amd.jpg)
+
+| Component | Spec | Role |
+|-----------|------|------|
+| CPU / APU | Ryzen 5 7640HS (Phoenix) | Host + shared-memory iGPU |
+| iGPU | Radeon 760M (RDNA3) | Vulkan build of llama.cpp (Mesa radv/aco) |
+| RAM | ~76 GB usable (96 GiB minus BIOS carve-out) | Large GGUF + 64K KV headroom |
+| OS | Ubuntu 26.04 | Same install path; thermal unit enabled |
+| LAN | `192.168.10.10` (`hrodrig-EliteMini-Series`) | Active AMD lab |
+
+Operator notes (port map, thermal, Bonsai): [docs/07-operations.md](docs/07-operations.md).
+Hardware rationale: [docs/02-hardware-decisions.md](docs/02-hardware-decisions.md).
 
 ## Status
 
@@ -139,7 +164,8 @@ throughput table and the MoE `--cpu-moe` findings.
 |-----|---------|
 | [SPECIFICATIONS.md](SPECIFICATIONS.md) | Scope and contract for v1 |
 | [docs/00-index.md](docs/00-index.md) | Docs map and reading order |
-| [docs/05-deployment.md](docs/05-deployment.md) | What `install.sh` does, CUDA pre-flight |
+| [docs/05-deployment.md](docs/05-deployment.md) | What `install.sh` does, CUDA/Vulkan pre-flight |
+| [docs/07-operations.md](docs/07-operations.md) | Daily ops, lab hosts, port map, thermal |
 | [docs/08-troubleshooting.md](docs/08-troubleshooting.md) | Common failures |
 | [docs/09-roadmap.md](docs/09-roadmap.md) | Near-term plans |
 | [CHANGELOG.md](CHANGELOG.md) | Per-version release notes |

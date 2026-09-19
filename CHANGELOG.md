@@ -10,13 +10,67 @@ accumulates unreleased work; the `Unreleased` section below tracks it.
 ## [Unreleased]
 
 ### Added
-- (none yet)
+- AMD lab client notes: dual modes (Gemma/Ollama fast Hermes vs
+  Ornith-35B quality LAN `:8082`), lean Pi/curl vs Hermes skills bloat
+  (~18k prompt → ~6 min on 35B, ~15–21 s on Gemma) —
+  `docs/06-networking-and-security.md`, `docs/07-operations.md`,
+  `docs/08-troubleshooting.md`. Pending Colibrì/Qwen36-i4 + DeepSeek
+  bake-off listed in ops + `docs/09-roadmap.md`.
+- `scripts/eval-go-ornith.sh` — OpenAI-compat prompt from the assertiveness
+  appendix + `go vet` / `go test` scratch harness (LAN AMD lab:
+  `ORNITH_BASE=http://192.168.10.10:8082/v1`).
+- AMD Radeon iGPU support via Vulkan. `deploy/install.sh` now auto-detects
+  a third backend: CUDA (NVIDIA RTX 3060) → Vulkan (AMD Radeon 760M /
+  Phoenix/RDNA3, driven by Mesa radv/aco, no ROCm) → CPU fallback. When an
+  AMD APU is present and no NVIDIA GPU, the script installs
+  `libvulkan1` / `mesa-vulkan-drivers` / `vulkan-tools` / `glslc` /
+  `spirv-headers` / `spirv-tools` and builds llama.cpp with
+  `-DGGML_VULKAN=ON -DGGML_NATIVE=ON`.
+- Thermal monitoring for the AMD mini-PC. New `scripts/thermal-guard.sh`
+  reads the peak SoC (`k10temp`) / GPU (`amdgpu`) junction and backs off at
+  a conservative 80 °C soft cap (Tjmax 95 °C). `serve-35b.sh` refuses to
+  start above the cap; `healthcheck.sh` reports the thermal peak and now
+  recognises the AMD/Vulkan GPU (previously misreported "no nvidia hw" as
+  CPU-only). `deploy/install.sh` installs `thermal-monitor.sh` +
+  `guasimo-thermal.service` and enables the unit on AMD hardware.
+- `config/ollama/Modelfile.ornith-35b` — Ollama alias for the Ornith 1.5
+  35B Q4_K_M GGUF (manual drop); `pull-models.sh large|35b` skips pull and
+  points at `install-aliases.sh`.
+- Optional **Prism ML Ternary Bonsai 2 27B** quality path: parallel
+  `llama-server-bonsai` from the PrismML-Eng/llama.cpp fork
+  (`scripts/build-bonsai-llama.sh`, pin `prism-b10687-5d80cff`),
+  `scripts/serve-bonsai.sh` on `:8083`, `pull-models.sh bonsai` operator
+  hints, opt-in via `INSTALL_BONSAI=1`. Stock Ollama/llama.cpp unchanged.
 
 ### Changed
-- (none yet)
+- `scripts/serve-bonsai.sh` defaults to `--no-repack` (`LLAMA_NO_REPACK=1`)
+  after a lab SIGSEGV in `ggml_backend_cpu_repack_buffer_set_tensor` on
+  Ternary PQ2_0; documented in `docs/04-models.md` / ops table.
+- `SPECIFICATIONS.md` — hardware contract now lists the two supported
+  accelerator backends (CUDA and Vulkan) with a note that Intel Arc remains
+  out of scope.
+- `docs/02-hardware-decisions.md` — added the AMD mini-PC (Ryzen 5 7640HS +
+  Radeon 760M, 76 GB RAM) secondary target; build-flag matrix and probe
+  order updated for the Vulkan path.
+- `docs/05-deployment.md` — phase 2 (Vulkan packages) and phase 3 (backend
+  selection) updated for the AMD path.
+- Ornith 35B GGUF default renamed to `Ornith-1.5-35B-Q4_K_M.gguf`
+  (~20.2 GB) in `serve-35b.sh` / Modelfile.
+- README + `docs/07-operations.md` — dual hardware targets (NVIDIA
+  `192.168.10.69` + AMD lab `192.168.10.10`), port map, thermal ops;
+  `docs/04-models.md` documents curl GGUF fallback when `pip --user` is
+  blocked (PEP 668).
 
 ### Fixed
-- (none yet)
+- `guasimo-thermal.service` was shipped but never copied/enabled by
+  `install.sh`; `thermal-monitor.sh` lacked `+x`. Both wired now;
+  `uninstall.sh` removes the unit.
+- llama.cpp `NEED_BUILD` now stamps the accelerator backend so a re-run
+  that flips CPU→Vulkan (same `LLAMA_CPP_REF`) rebuilds instead of keeping
+  a CPU binary.
+- Ollama is restarted after `usermod -aG render,video` so the new groups
+  apply (otherwise Vulkan silently falls back to llvmpipe).
+- `healthcheck.sh` requires an AMD/RADV `deviceName` (rejects llvmpipe-only).
 
 ### Removed
 - (none yet)

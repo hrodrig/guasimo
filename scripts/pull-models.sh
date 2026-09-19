@@ -17,6 +17,16 @@
 #               on via Modelfile (config/ollama/Modelfile.qwen3-27b-thinking).
 # - gemma     : Gemma 4 12B (Ollama gemma4:12b) — agents / tools
 # - deepseek  : DeepSeek-Coder-V2-Lite (deepseek-coder-v2:lite) — backup coder
+# - large     : Ornith-1.5-35B-A3B (MoE 35B/3B active, Q4_K_M, ~20 GB), the
+#               natural step up from primary. MANUAL GGUF DROP like primary:
+#               place Ornith-1.5-35B-Q4_K_M.gguf in /bulk/models/ first.
+#               It fits ~80 GB with ~50 GB headroom for a 64K KV cache; the
+#               first model above the 9B primary that is worth the RAM on
+#               the AMD mini-PC (see docs/02-hardware-decisions.md).
+# - bonsai    : Prism ML Ternary Bonsai 2 27B (PQ2_0 ~7.2 GB / PTQ1_0 ~5.9 GB).
+#               MANUAL GGUF DROP — NOT an Ollama model. Needs the PrismML
+#               llama.cpp fork (scripts/build-bonsai-llama.sh) and
+#               scripts/serve-bonsai.sh on :8083. See docs/04-models.md.
 # - all       : primary + secondary
 # - <name>    : any name known to Ollama's registry
 #
@@ -58,6 +68,7 @@ declare -A MODELS=(
   [thinking]="qwen3.8:27b"
   [gemma]="gemma4:12b"
   [deepseek]="deepseek-coder-v2:lite"
+  [large]="ornith-35b"
 )
 
 # Resolve which names to pull.
@@ -68,6 +79,20 @@ case "${WHAT}" in
   thinking)  TARGETS=("${MODELS[thinking]}") ;;
   gemma|gemma4) TARGETS=("${MODELS[gemma]}") ;;
   deepseek|deepseek-lite) TARGETS=("${MODELS[deepseek]}") ;;
+  large|35b|ornith-35b) TARGETS=("${MODELS[large]}") ;;
+  bonsai|bonsai2|ternary-bonsai|bonsai-2-27b)
+    # Not an Ollama library tag. Print the operator path and exit — no
+    # daemon required. Serve path is scripts/serve-bonsai.sh (:8083).
+    echo ">>> bonsai is a manual GGUF drop (Prism ML Ternary Bonsai 2 27B)"
+    echo "    1. sudo ./scripts/build-bonsai-llama.sh"
+    echo "    2. drop Ternary-Bonsai-2-27B-PQ2_0.gguf into ${BULK_DIR}/"
+    echo "       hf download …  OR  curl -L -C - (PEP 668 blocks pip --user)"
+    echo "       full recipes: docs/04-models.md → Bonsai download"
+    echo "    3. ./scripts/serve-bonsai.sh"
+    echo "    Open WebUI → OpenAI connection → http://127.0.0.1:8083/v1"
+    echo "    model alias: bonsai-2-27b"
+    exit 0
+    ;;
   all)       TARGETS=("${MODELS[primary]}" "${MODELS[secondary]}") ;;
   *)
     # Treat the arg as a literal ollama name; useful for ad-hoc pulls.
@@ -88,6 +113,7 @@ EST_GB=0
 for t in "${TARGETS[@]}"; do
   case "$t" in
     *ornith-9b*|*ornith*9b*)                         EST_GB=$((EST_GB + 8))  ;;  # Ornith-1.5-9B Q6_K (manual drop)
+    *ornith-35b*|*ornith*35b*)                       EST_GB=$((EST_GB + 21)) ;;  # Ornith-1.5-35B-A3B Q4_K_M (manual drop)
     *qwen3.8*|*qwen3-8*)                             EST_GB=$((EST_GB + 18)) ;;  # qwen3.8:27b Q4_K_M
     *14b*)                                           EST_GB=$((EST_GB + 9))  ;;  # legacy Qwen2.5-Coder-14B
     *7b*)                                            EST_GB=$((EST_GB + 5))  ;;  # Qwen2.5-Coder-7B
@@ -111,13 +137,13 @@ run_ollama() {
 
 echo "  pull log: ${PULL_LOG}"
 for t in "${TARGETS[@]}"; do
-  if [ "${t}" = "ornith-9b" ]; then
-    # `primary` is a MANUAL GGUF drop, not an Ollama library tag. There is
-    # nothing to `ollama pull`; the alias is created by install-aliases.sh
-    # from config/ollama/Modelfile.ornith-9b once the GGUF is in /bulk/models/.
+  if [ "${t}" = "ornith-9b" ] || [ "${t}" = "ornith-35b" ]; then
+    # `primary` and `large` are MANUAL GGUF drops, not Ollama library tags.
+    # There is nothing to `ollama pull`; the alias is created by
+    # install-aliases.sh once the GGUF is in /bulk/models/.
     echo
-    echo ">>> primary (ornith-9b) is a manual GGUF drop — skipping ollama pull"
-    echo "    place Ornith-1.5-9B-Q6_K.gguf in ${BULK_DIR}/ and re-run install-aliases.sh"
+    echo ">>> ${t} is a manual GGUF drop — skipping ollama pull"
+    echo "    place the ${t} GGUF in ${BULK_DIR}/ and re-run install-aliases.sh"
     continue
   fi
   echo

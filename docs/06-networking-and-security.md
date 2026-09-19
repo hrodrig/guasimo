@@ -45,6 +45,105 @@ stays one explicit selection away for deep work. The chat endpoint, the
 
 ## Clients on another LAN host (Hermes Agent, IDE plugins)
 
+### AMD lab — two day-to-day modes (pick one; do not dual-load)
+
+On `192.168.10.10` run **either** Ollama (fast agent) **or** Ornith-35B
+(quality), not both — dual load melts the SoC. 9B llama unit stays
+disabled.
+
+| Mode | When | Endpoint | Model | Hermes? |
+|------|------|----------|-------|---------|
+| **Fast agent** | Hermes / chat loops | `http://192.168.10.10:11434/v1` | `gemma4:12b` | OK (~15–20 s TTFB with ~19k skills dump) |
+| **Quality Go** | review / hard code | `http://192.168.10.10:8082/v1` | `ornith-35b` | Avoid full skills; use Pi `--no-skills` or curl |
+
+**Switch fast → quality:**
+
+```bash
+sudo systemctl stop ollama
+sudo systemctl start guasimo-llama-35b   # --cpu-moe, 0.0.0.0:8082, ctx 262144
+```
+
+**Switch quality → fast:**
+
+```bash
+sudo systemctl stop guasimo-llama-35b
+sudo systemctl start ollama             # OLLAMA_HOST=0.0.0.0:11434
+```
+
+Smoke (no tunnel):
+
+```bash
+# fast
+curl -sS http://192.168.10.10:11434/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"gemma4:12b","messages":[{"role":"user","content":"ping"}],"max_tokens":32}'
+# quality
+curl -sS http://192.168.10.10:8082/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"ornith-35b","messages":[{"role":"user","content":"ping"}],"max_tokens":32}'
+```
+
+Measured same factorial + Hermes (~18–19k prompt tokens):
+
+- Ornith-35B `--cpu-moe`: **~6 min** prefill (~80–90 tok/s PP)
+- Gemma 4 12B (Ollama): **~15–21 s** to fluent output, coherent
+
+Generation on 35B (~20 t/s) is fine; Hermes skills dump is the killer
+there. On Gemma the same dump is merely a short pause. Prefer Pi lean /
+Open WebUI / curl when on Ornith.
+
+Hermes (fast mode) sketch:
+
+```yaml
+model:
+  provider: custom
+  base_url: http://192.168.10.10:11434/v1
+  default: gemma4:12b
+  api_key: ollama
+  context_length: 262144
+  ollama_num_ctx: 262144
+agent:
+  reasoning_effort: none
+```
+
+Pi `~/.pi/agent/models.json` sketch:
+
+```json
+{
+  "providers": {
+    "guasimo": {
+      "baseUrl": "http://192.168.10.10:8082/v1",
+      "apiKey": "ollama",
+      "api": "openai-completions",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false
+      },
+      "models": [
+        {
+          "id": "ornith-35b",
+          "name": "Ornith 35B",
+          "reasoning": false,
+          "input": ["text"],
+          "contextWindow": 262144,
+          "maxTokens": 8192,
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
+        }
+      ]
+    }
+  }
+}
+```
+
+```bash
+pi --model guasimo/ornith-35b --no-skills --no-extensions
+```
+
+Do **not** use `pi update` / in-TUI update with a dummy key — that hits
+OpenAI. Bump the CLI with `npm i -g @mariozechner/pi-coding-agent@latest`.
+
+### Ollama on loopback (reference / CUDA box)
+
 Same subnet does **not** expose Ollama. The API stays on loopback of the
 guasimo box. From a Mac / laptop on the LAN:
 

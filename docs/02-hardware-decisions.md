@@ -14,8 +14,31 @@
 The GPU is present and is the **primary** inference target. `install.sh`
 detects the hardware via `lspci` (works before the proprietary driver is
 loaded) and via `nvidia-smi` (runtime confirmation). CPU remains a fallback
-for when the GPU is busy or unavailable. AMD and Intel Arc are explicitly
-out of scope.
+for when the GPU is busy or unavailable.
+
+A second target — the AMD Radeon 760M iGPU (Phoenix / RDNA3) in mini-PC
+form factors — is now supported via Vulkan. It is selected automatically
+when no NVIDIA GPU is present but an AMD APU shows in `lspci`. Intel Arc
+is the only accelerator explicitly out of scope.
+
+### Secondary target: AMD mini-PC (Vulkan)
+
+| Component | Spec                                  | Notes                                        |
+|-----------|---------------------------------------|----------------------------------------------|
+| CPU       | AMD Ryzen 5 7640HS (Zen4, 6c/12t, 5.0 GHz) | AVX2 + AVX-512 (incl. VNNI/bf16); strong SIMD |
+| iGPU      | AMD Radeon 760M (Phoenix1, RDNA3)     | Vulkan via Mesa radv/aco; no ROCm needed     |
+| RAM       | 96 GB total, ~16 GB reserved for iGPU | ~80 GB usable; APU shares RAM as VRAM        |
+| NVMe      | Kingston OM8PGP4 (PCIe 4.0 QLC)       | DRAM-less; fine for read-mostly GGUF loads   |
+| NIC       | Realtek RTL8125 2.5GbE + MT7902 WiFi  | 2.5 GbE preferred for LAN                    |
+| OS        | Ubuntu 26.04                          | Same contract as the reference box           |
+
+The Radeon 760M has no dedicated VRAM: firmware carves a share of system
+RAM as GPU memory (set to ~16 GB in BIOS on this box — generous for a
+mini-PC). llama.cpp's Vulkan backend offloads as many layers as fit in
+that carve-out and keeps the rest on CPU/RAM. With a ~16 GB carve-out the
+9B primary (Q6_K, ~6-7 GB weights) fits fully in GPU memory, and the
+~80 GB of system RAM leaves ample headroom for the 27B secondary plus a
+64K KV cache without paging.
 
 ## Why GPU-primary, CPU as fallback
 
@@ -92,26 +115,62 @@ Why: a 14 B Q4 GGUF is ~9 GB. Pulling the latest 32 B model for a quick test
 should not evict the active one. NVMe is the speed layer; SSD is the volume
 layer.
 
+## Why we do not pull large MoEs (≥125B) on the mini-PC
+
+Documented so this decision is recorded and not re-evaluated each session.
+`Qwen3.8-Flash-Next` is a 125B-total MoE (6B active) that is frequently
+proposed as a "flagship" drop-in. It does not fit the mini-PC's memory and
+no quantisation brings it inside budget once KV cache and compute buffers
+are counted. Measured sizes from `unsloth/Qwen3.8-Flash-Next-GGUF`:
+
+| Quantisation | Weight on disk (GB) | Fits ~80 GB usable?                                    |
+|--------------|---------------------|--------------------------------------------------------|
+| Q8_0         | ~125                | No                                                     |
+| Q6_K_XL      | ~95                 | No                                                     |
+| Q5_K_XL      | ~82                 | No (KV cache pushes it over)                           |
+| Q4_K_XL      | ~68                 | Borderline — no headroom for a 64K KV cache            |
+| Q3_K_XL      | ~90                 | No                                                     |
+| Q2_K_XL      | ~79                 | No                                                     |
+| IQ1_M        | ~75                 | No                                                     |
+| IQ1_S        | ~72.5               | Borderline — model loads, then pages on any real ctx   |
+
+The base is 125B: the aggressive low-bit quants (IQ1/IQ2/Q2) that would
+nominally fit degrade quality so far that the 27B dense (`qwen3.8:27b` Q4,
+~18 GB) delivers far better *usable* quality at a fraction of the RAM and
+without paging. At those lossy quants the KV cache for a useful 64K context
+still overflows into swap and inference collapses to unusable speed on an
+APU sharing its video carve-out with system RAM.
+
+**Decision**: the mini-PC target is capped at ~35B-total MoE. The natural
+step up from `primary` (Ornith-1.5-9B) is `Ornith-1.5-35B-A3B` (Q4_K_M,
+~20 GB), which leaves ~50 GB of headroom for a 64K KV cache and OS. Models
+of 125B+ are explicitly out of scope for this target and belong on GPU
+datacenter hardware.
+
 ## Build flags matrix
 
 | Detected at install time           | llama.cpp CMake flags                                                    |
 |-----------------------------------|--------------------------------------------------------------------------|
 | RTX 3060 + driver working         | `-DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=86 -DGGML_NATIVE=OFF`         |
 | RTX 3060 hardware but no driver   | Log a clear warning, fall through to CPU row, leave driver install as a follow-up |
-| AVX2 CPU only (no NVIDIA)         | `-DGGML_NATIVE=ON` (defaults to host CPU flags)                           |
-| Vulkan-only fallback              | `-DGGML_VULKAN=ON` (used as last resort, not primary)                    |
+| AMD Radeon iGPU (Phoenix/RDNA3)   | `-DGGML_VULKAN=ON -DGGML_NATIVE=ON`                                      |
+| AVX2/AVX-512 CPU only (no GPU)    | `-DGGML_NATIVE=ON` (defaults to host CPU flags)                           |
 
 `install.sh` probes in this order:
 
-1. `lspci | grep -i nvidia` — hardware present, works without the driver.
+1. `lspci | grep -i nvidia` — NVIDIA hardware present, works without the driver.
 2. `nvidia-smi -L` — runtime confirmation; if it works we can build with
    `-DGGML_CUDA=ON`.
-3. `/proc/cpuinfo` flags — for the CPU fallback path.
+3. `lspci` for an AMD APU (`amd/ati` + `vga`) — if present and no NVIDIA,
+   select the Vulkan backend (`-DGGML_VULKAN=ON`).
+4. `/proc/cpuinfo` flags — for the CPU fallback path.
 
 The selected flags are logged and echoed at the end of the build so the
 operator can audit what was compiled. The CUDA arch list is pinned to the
 known set for this box (SM 86 = GA106) — not `native` — to keep the build
-reproducible on rebuild.
+reproducible on rebuild. The Vulkan backend keeps `-DGGML_NATIVE=ON` so
+the CPU kernels (which carry the layers that don't fit the APU's VRAM
+carve-out) stay tuned for the host.
 
 ### Driver install timing
 

@@ -6,6 +6,27 @@
 
 set -euo pipefail
 
+# Non-interactive apt. Without this, debconf prompts (e.g. the legacy
+# grub-pc "install_devices" question that fires on boxes that moved from
+# grub-pc to grub-efi) block a headless `sudo -n`/screen run forever.
+export DEBIAN_FRONTEND=noninteractive
+
+# Force debconf into non-interactive mode at the debconf level and silence
+# every question to critical priority. DEBIAN_FRONTEND alone is not enough:
+# the grub-pc reconfigure dialog opens a pty on /dev/ptmx regardless. Telling
+# debconf itself to answer nothing below critical stops it, and non-critical
+# questions then take their debconf default instead of hanging.
+debconf_set() { command -v debconf-set-selections >/dev/null 2>&1 && echo "$1" | debconf-set-selections; }
+debconf_set "debconf debconf/frontend select Noninteractive"
+debconf_set "debconf debconf/priority select critical"
+# Answer the specific grub-pc questions that trigger on BIOS/EFI migration.
+# `install_devices_empty=true` keeps the legacy grub-pc from touching any
+# disk on EFI boxes; on a genuine BIOS box the operator pre-seeds the real
+# device before running this script.
+debconf_set "grub-pc grub-pc/install_devices multiselect"
+debconf_set "grub-pc grub-pc/install_devices_empty boolean true"
+debconf_set "grub-pc grub-pc/install_devices_failed_upgrade boolean false"
+
 # ---------------------------------------------------------------------------
 # Pinned versions
 # ---------------------------------------------------------------------------
@@ -17,6 +38,11 @@ LLAMA_CPP_REF="${LLAMA_CPP_REF:-b10630}"             # llama.cpp git SHA / tag.
 # This ref also carries the `<cstdint>` fix (#11796), so the GCC-15
 # header patch in docs/08-troubleshooting.md is no longer needed for
 # fresh builds.
+# Opt-in: also build the PrismML llama.cpp fork for Ternary Bonsai 2
+# (scripts/build-bonsai-llama.sh → /opt/guasimo/llama-server-bonsai).
+# Default off so a normal install stays lean. Set INSTALL_BONSAI=1 to
+# build during phase 3, or run the script later.
+INSTALL_BONSAI="${INSTALL_BONSAI:-0}"
 # Ollama: minimum 0.32.12 to support qwen3.8:27b (Aug 2026 multimodal /
 # thinking generation). 0.32.14 adds WebP image transcoding for
 # llama-server and a Qwen renderer fix; the install script tries apt
@@ -141,14 +167,28 @@ HAS_AVX512=$(echo "${CPU_FLAGS}" | grep -qw avx512f && echo y || echo n)
 HAS_FMA=$(echo "${CPU_FLAGS}" | grep -qw fma && echo y || echo n)
 
 # GPU detection.
+# Three backends are supported, selected automatically at probe time:
+#   - CUDA   : NVIDIA discrete GPU (RTX 3060 / GA106) with driver + nvcc.
+#   - Vulkan : AMD Radeon iGPU (Phoenix / RDNA3, e.g. Radeon 760M) with the
+#              Mesa radv/aco Vulkan drivers. No proprietary driver needed.
+#   - CPU    : fallback when no accelerator is usable.
 # Phase A (hardware): lspci works without the proprietary driver loaded.
 # Phase B (runtime): nvidia-smi works only after the driver module is loaded.
 HAS_NVIDIA_HW=n
 HAS_NVIDIA_RT=n
+HAS_AMD_HW=n
 if command -v lspci >/dev/null 2>&1; then
   if lspci 2>/dev/null | grep -qi 'nvidia'; then
     HAS_NVIDIA_HW=y
   fi
+  # AMD APU / GPU. The Radeon 760M reports as "[AMD/ATI] Phoenix1" on a
+  # "VGA compatible controller" line. Match ONLY the VGA/display class so
+  # that AMD audio controllers (e.g. "Radeon High Definition Audio") don't
+  # false-positive the Vulkan backend. The lspci output is captured first so
+  # the pipeline never trips `set -o pipefail` when a header class is absent.
+  LSPCI_OUT=$(lspci 2>/dev/null || true)
+  AMD_GFX=$(printf '%s\n' "${LSPCI_OUT}" | grep -iE 'vga compatible|display controller|3d controller' | grep -i 'amd' || true)
+  [ -n "${AMD_GFX}" ] && HAS_AMD_HW=y
 fi
 if command -v nvidia-smi >/dev/null 2>&1; then
   if nvidia-smi -L >/dev/null 2>&1; then
@@ -171,6 +211,7 @@ mkdir -p "${DATA_DISK}" "${BULK_DISK}" 2>/dev/null || true
 echo "  ubuntu         ${VERSION_ID}"
 echo "  CPU features   AVX2=${HAS_AVX2}  AVX512=${HAS_AVX512}  FMA=${HAS_FMA}"
 echo "  NVIDIA GPU     hardware=${HAS_NVIDIA_HW}  runtime=${HAS_NVIDIA_RT}"
+echo "  AMD GPU        hardware=${HAS_AMD_HW}"
 echo "  driver pkg     <detected in phase 2>"
 echo "  cuda pkg       <detected in phase 2>"
 echo "  data mount     ${DATA_DISK} (created if missing)"
@@ -206,6 +247,24 @@ if [ "${HAS_NVIDIA_HW}" = y ] && [ -n "${DRIVER_PKG}" ]; then
   if [ -n "${CUDA_PKG}" ]; then
     PKGS+=("${CUDA_PKG}")
   fi
+fi
+
+# Vulkan runtime AND headers for the AMD path. The Radeon 760M (RDNA3) is
+# driven by Mesa's radv/aco Vulkan driver — no proprietary driver, no ROCm.
+# llama.cpp's GGML_VULKAN backend needs the Vulkan headers to COMPILE and
+# the loader + radv to RUN, so this installs:
+#   libvulkan1           loader (runtime)
+#   libvulkan-dev        vulkan/vulkan.h headers (build-time)
+#   mesa-vulkan-drivers  radv/aco ICD (runtime)
+#   vulkan-tools         vulkaninfo, used by probe/healthcheck
+#   glslc                GLSL→SPIR-V compiler (llama.cpp's Vulkan backend
+#                        fails CMake configure without the glslc binary;
+#                        on Ubuntu this is its OWN package, NOT glslang-tools)
+#   spirv-headers        SPIRV-Headers cmake package (find_package fails
+#                        without it — provides SPIRV-HeadersConfig.cmake)
+#   spirv-tools          spirv-opt/dis (used by ggml-vulkan shader pipeline)
+if [ "${HAS_AMD_HW}" = y ] && [ "${HAS_NVIDIA_HW}" != y ]; then
+  PKGS+=(libvulkan1 libvulkan-dev mesa-vulkan-drivers vulkan-tools glslc spirv-headers spirv-tools)
 fi
 
 if ! dpkg -s "${PKGS[@]}" >/dev/null 2>&1; then
@@ -280,6 +339,27 @@ if ! id -u "${SERVICE_USER}" >/dev/null 2>&1; then
           --comment "guasimo services" "${SERVICE_USER}"
 fi
 
+# Vulkan on AMD needs access to the DRM render node /dev/dri/renderD128,
+# which is root:render (crw-rw----). Without `render` membership the Mesa
+# radv ICD silently fails to enumerate and Vulkan falls back to llvmpipe
+# (software rasterizer) — the build is fine, but every GPU inference then
+# runs on CPU and shows the same token/s as a no-GPU box. This is the
+# classic "Vulkan compiled but 0 layers offload" failure that is invisible
+# until you benchmark. Put the service user in `render`+`video` so
+# llama-server (run as SERVICE_USER) can open the device. The ollama
+# daemon user is handled in phase 4 once that user exists.
+usermod_render_group() {
+  local u="$1"
+  if id -u "$u" >/dev/null 2>&1; then
+    usermod -aG render,video "$u" >/dev/null 2>&1 || \
+      warn "could not add $u to render,video (see docs/05-deployment.md)"
+  fi
+}
+if [ "${HAS_AMD_HW}" = y ]; then
+  usermod_render_group "${SERVICE_USER}"
+  echo "  AMD render access: ${SERVICE_USER} → groups render,video"
+fi
+
 mkdir -p "${INSTALL_ROOT}" "${LOG_DIR}" "${DATA_DISK}/models" \
          "${BULK_DISK}/models" "${DATA_DISK}/open-webui"
 # Parents must stay world-traversable (o+x). Do NOT chown all of /data to
@@ -297,17 +377,29 @@ banner "phase 3/5  llama.cpp"
 
 # Build flag matrix (mirrors docs/02-hardware-decisions.md).
 #
-# - GPU runtime working + CUDA toolkit installed → CUDA build, SM 86 arch.
-# - GPU hardware present but driver not yet loaded (first install, pre-reboot)
-#   → skip the CUDA build this run, log a clear "reboot + rerun" message.
-# - No NVIDIA at all → CPU build with -march=native on this i5.
+# Backend selection order:
+#   - CUDA   : NVIDIA runtime working + nvcc present → SM 86 (RTX 3060).
+#   - Vulkan : AMD iGPU present → GGML_VULKAN, offload as many layers as
+#              fit in the APU's shared VRAM carve-out. The Radeon 760M is
+#              RDNA3, driven by Mesa radv/aco (no ROCm needed).
+#   - CPU    : fallback, -march=native (AVX2/AVX-512 auto-selected).
 CMAKE_FLAGS=()
 USE_CUDA=n
+USE_VULKAN=n
 if [ "${HAS_NVIDIA_RT}" = y ] && [ "${HAS_NVIDIA_HW}" = y ] \
    && command -v nvcc >/dev/null 2>&1; then
   USE_CUDA=y
   CMAKE_FLAGS+=("-DGGML_CUDA=ON" "-DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHS}")
   CMAKE_FLAGS+=("-DGGML_NATIVE=OFF")
+elif [ "${HAS_AMD_HW}" = y ]; then
+  # Prefer a working AMD/Vulkan path over waiting on an unloaded NVIDIA
+  # driver. Hybrid boxes (dead NVIDIA + live AMD APU) still get a GPU build.
+  USE_VULKAN=y
+  CMAKE_FLAGS+=("-DGGML_VULKAN=ON" "-DGGML_NATIVE=ON")
+  if [ "${HAS_NVIDIA_HW}" = y ] && [ "${HAS_NVIDIA_RT}" = n ]; then
+    warn "NVIDIA hardware present but nvidia-smi is not working; building"
+    warn "Vulkan (AMD) for this run. Reboot + re-run $0 for CUDA later."
+  fi
 elif [ "${HAS_NVIDIA_HW}" = y ] && [ "${HAS_NVIDIA_RT}" = n ]; then
   warn "NVIDIA hardware detected but nvidia-smi is not working."
   warn "Driver package was installed in phase 2; a reboot is required"
@@ -315,9 +407,10 @@ elif [ "${HAS_NVIDIA_HW}" = y ] && [ "${HAS_NVIDIA_RT}" = n ]; then
   warn "run. Reboot and re-run $0 to finish the CUDA build."
 fi
 
-# CPU build is always built — it is the fallback path. We use -march=native
-# only when no CUDA path is in play to keep AVX2/AVX-512 selection automatic.
-if [ "${USE_CUDA}" = n ]; then
+# CPU build is always the fallback path. We use -march=native only when no
+# accelerator path is in play (CUDA prefers a pinned arch; Vulkan keeps
+# native so the CPU kernels stay tuned for the host).
+if [ "${USE_CUDA}" = n ] && [ "${USE_VULKAN}" = n ]; then
   CMAKE_FLAGS+=("-DGGML_NATIVE=ON")
 fi
 
@@ -347,6 +440,15 @@ git_llama() {
   git -c "safe.directory=${LLAMA_SRC_DIR}" -C "${LLAMA_SRC_DIR}" "$@"
 }
 
+# Desired accelerator identity for this run. Written to a stamp after a
+# successful build so a later re-run with the same LLAMA_CPP_REF but a
+# different backend (e.g. CPU → Vulkan after AMD packages land) forces a
+# rebuild instead of silently keeping the old binary.
+BACKEND_ID=cpu
+[ "${USE_CUDA}" = y ] && BACKEND_ID=cuda
+[ "${USE_VULKAN}" = y ] && BACKEND_ID=vulkan
+BACKEND_STAMP="${INSTALL_ROOT}/.llama-backend"
+
 # Build if missing or SHA drifted. Accept either the install symlink or
 # the cmake output path (operator may have built by hand mid-install).
 # Compare resolved commit SHAs — LLAMA_CPP_REF is often a tag (b10630)
@@ -358,17 +460,23 @@ if { [ -x "${INSTALL_ROOT}/llama-server" ] \
    && [ -d "${LLAMA_SRC_DIR}/.git" ]; then
   CURRENT_SHA=$(git_llama rev-parse HEAD 2>/dev/null || echo none)
   PINNED_SHA=$(git_llama rev-parse "${LLAMA_CPP_REF}^{commit}" 2>/dev/null || echo none)
-  if [ "${CURRENT_SHA}" != none ] && [ "${CURRENT_SHA}" = "${PINNED_SHA}" ]; then
+  PREV_BACKEND=none
+  [ -f "${BACKEND_STAMP}" ] && PREV_BACKEND=$(cat "${BACKEND_STAMP}" 2>/dev/null || echo none)
+  if [ "${CURRENT_SHA}" != none ] && [ "${CURRENT_SHA}" = "${PINNED_SHA}" ] \
+     && [ "${PREV_BACKEND}" = "${BACKEND_ID}" ]; then
     NEED_BUILD=n
-    echo "  llama.cpp already built at ${LLAMA_CPP_REF} (${CURRENT_SHA:0:7})"
+    echo "  llama.cpp already built at ${LLAMA_CPP_REF} (${CURRENT_SHA:0:7}, ${BACKEND_ID})"
+  elif [ "${PREV_BACKEND}" != none ] && [ "${PREV_BACKEND}" != "${BACKEND_ID}" ]; then
+    echo "  llama.cpp backend changed (${PREV_BACKEND} → ${BACKEND_ID}); rebuilding"
   fi
 fi
 
-if [ "${NEED_BUILD}" = y ] && [ "${USE_CUDA}" = n ] \
+if [ "${NEED_BUILD}" = y ] && [ "${USE_CUDA}" = n ] && [ "${USE_VULKAN}" = n ] \
    && [ "${HAS_NVIDIA_HW}" = y ] && [ "${HAS_NVIDIA_RT}" = n ]; then
   # Skip the build to avoid producing a CPU-only binary when a CUDA build
   # will be needed post-reboot. Phase 4 (Ollama) and 5 (WebUI) still proceed
-  # so the box is functional on CPU until the reboot happens.
+  # so the box is functional on CPU until the reboot happens. Vulkan path
+  # above already took over when AMD hw is present.
   echo "  deferring llama.cpp build until after reboot (CUDA path)"
   NEED_BUILD=n
 fi
@@ -417,6 +525,8 @@ if [ "${NEED_BUILD}" = y ]; then
   cmake --build "${LLAMA_SRC_DIR}/build" --parallel "${BUILD_JOBS}"
   strip "${LLAMA_SRC_DIR}/build/bin/llama-server" \
         "${LLAMA_SRC_DIR}/build/bin/llama-cli"
+  printf '%s\n' "${BACKEND_ID}" > "${BACKEND_STAMP}"
+  chown "${SERVICE_USER}:${SERVICE_USER}" "${BACKEND_STAMP}" 2>/dev/null || true
 fi
 
 # Always symlink. If we deferred the build, the symlink will point at a
@@ -428,6 +538,27 @@ chown -h "${SERVICE_USER}:${SERVICE_USER}" "${INSTALL_ROOT}/llama-server" \
 
 echo "  build flags: ${CMAKE_FLAGS[*]:-<deferred, see warning above>}"
 echo "  cuda build:  ${USE_CUDA}"
+echo "  vulkan build: ${USE_VULKAN}"
+echo "  backend id:  ${BACKEND_ID}"
+
+# Optional PrismML fork for Ternary Bonsai 2 (parallel binary, not Ollama).
+if [ "${INSTALL_BONSAI}" = "1" ] || [ "${INSTALL_BONSAI}" = "y" ]; then
+  echo "  INSTALL_BONSAI=${INSTALL_BONSAI} → building PrismML llama.cpp fork"
+  # Prefer repo-relative script when install is run from a git checkout;
+  # fall back to INSTALL_ROOT copy if an operator re-runs from /opt.
+  BONSAI_BUILD=""
+  for cand in \
+      "$(cd "$(dirname "$0")/.." && pwd)/scripts/build-bonsai-llama.sh" \
+      "${INSTALL_ROOT}/scripts/build-bonsai-llama.sh" \
+      "./scripts/build-bonsai-llama.sh"; do
+    [ -x "${cand}" ] && BONSAI_BUILD="${cand}" && break
+  done
+  if [ -n "${BONSAI_BUILD}" ]; then
+    "${BONSAI_BUILD}"
+  else
+    warn "INSTALL_BONSAI set but scripts/build-bonsai-llama.sh not found"
+  fi
+fi
 
 # ---------------------------------------------------------------------------
 # Phase 4 — Ollama
@@ -473,10 +604,27 @@ if id -u "${OLLAMA_USER}" >/dev/null 2>&1; then
   echo "  chown ${DATA_DISK}/models → ${OLLAMA_USER}:${OLLAMA_USER}"
   chown -R "${OLLAMA_USER}:${OLLAMA_USER}" \
     "${DATA_DISK}/models" "${BULK_DISK}/models"
+  # Same DRM render-node requirement as phase 2. Ollama runs as
+  # User=ollama; without `render` membership its llama-server (whatever
+  # backend) cannot open /dev/dri/renderD128 and Vulkan silently falls
+  # back to CPU. Add it here now that the user exists.
+  if [ "${HAS_AMD_HW}" = y ]; then
+    usermod -aG render,video "${OLLAMA_USER}" >/dev/null 2>&1 || \
+      warn "could not add ${OLLAMA_USER} to render,video"
+    echo "  AMD render access: ${OLLAMA_USER} → groups render,video"
+    # Group membership is resolved at process start. If ollama is already
+    # running, restart so the new render/video groups actually apply —
+    # otherwise Vulkan silently falls back to llvmpipe/CPU.
+    OLLAMA_NEEDS_RESTART=y
+  fi
 fi
 
 systemctl daemon-reload
 systemctl enable --now ollama
+if [ "${OLLAMA_NEEDS_RESTART:-n}" = y ]; then
+  systemctl restart ollama
+  echo "  restarted ollama (pick up render/video group membership)"
+fi
 
 # ---------------------------------------------------------------------------
 # Phase 5 — Open WebUI + nginx
@@ -555,10 +703,27 @@ echo "  installing open-webui==${OPEN_WEBUI_VERSION} (large; RAG stack)"
 "${WEBUI_VENV}/bin/pip" install \
   "open-webui==${OPEN_WEBUI_VERSION}" "httpx" "uvicorn"
 
-# Install ops scripts under INSTALL_ROOT (logrotate timer, etc.).
+# Install ops scripts under INSTALL_ROOT (logrotate timer, thermal, etc.).
 mkdir -p "${INSTALL_ROOT}/scripts"
 cp scripts/rotate-logs.sh "${INSTALL_ROOT}/scripts/rotate-logs.sh"
 chmod 755 "${INSTALL_ROOT}/scripts/rotate-logs.sh"
+# Thermal helpers: guard is one-shot (called by serve-35b / operators);
+# monitor is the long-lived systemd daemon. Always install both so AMD
+# boxes and operators on CUDA boxes share the same paths.
+cp scripts/thermal-guard.sh "${INSTALL_ROOT}/scripts/thermal-guard.sh"
+cp scripts/thermal-monitor.sh "${INSTALL_ROOT}/scripts/thermal-monitor.sh"
+# Bonsai quality path (optional; binary built only with INSTALL_BONSAI=1).
+cp scripts/build-bonsai-llama.sh "${INSTALL_ROOT}/scripts/build-bonsai-llama.sh"
+cp scripts/serve-bonsai.sh "${INSTALL_ROOT}/scripts/serve-bonsai.sh"
+chmod 755 "${INSTALL_ROOT}/scripts/thermal-guard.sh" \
+          "${INSTALL_ROOT}/scripts/thermal-monitor.sh" \
+          "${INSTALL_ROOT}/scripts/build-bonsai-llama.sh" \
+          "${INSTALL_ROOT}/scripts/serve-bonsai.sh"
+chown "${SERVICE_USER}:${SERVICE_USER}" \
+  "${INSTALL_ROOT}/scripts/thermal-guard.sh" \
+  "${INSTALL_ROOT}/scripts/thermal-monitor.sh" \
+  "${INSTALL_ROOT}/scripts/build-bonsai-llama.sh" \
+  "${INSTALL_ROOT}/scripts/serve-bonsai.sh"
 
 cp deploy/systemd/open-webui.service /etc/systemd/system/open-webui.service
 cp deploy/systemd/guasimo.target       /etc/systemd/system/guasimo.target
@@ -566,9 +731,20 @@ cp deploy/systemd/guasimo-logrotate.service \
    /etc/systemd/system/guasimo-logrotate.service
 cp deploy/systemd/guasimo-logrotate.timer \
    /etc/systemd/system/guasimo-logrotate.timer
+cp deploy/systemd/guasimo-thermal.service \
+   /etc/systemd/system/guasimo-thermal.service
 systemctl daemon-reload
 systemctl enable --now open-webui.service guasimo.target
 systemctl enable --now guasimo-logrotate.timer
+# Thermal monitor is the always-on signal for the AMD mini-PC capacitor
+# burn-out failure mode. Enable only when AMD hw is present; CUDA boxes
+# keep nvidia-smi / their own thermal path and do not need this unit.
+if [ "${HAS_AMD_HW}" = y ]; then
+  systemctl enable --now guasimo-thermal.service
+  echo "  enabled guasimo-thermal.service (AMD SoC/GPU junction)"
+else
+  systemctl disable --now guasimo-thermal.service 2>/dev/null || true
+fi
 
 # Self-signed cert BEFORE nginx -t — the vhost references these paths
 # and `nginx -t` fails hard if they are missing on first install.
@@ -608,6 +784,11 @@ Next steps:
   ./scripts/pull-models.sh primary
   ./scripts/benchmark.sh   primary
   ./scripts/healthcheck.sh
+  # optional dense-intelligence path (Prism ML Bonsai 2):
+  #   INSTALL_BONSAI=1  (already built if you set it) or
+  #   sudo ./scripts/build-bonsai-llama.sh
+  #   ./scripts/pull-models.sh bonsai   # prints GGUF drop instructions
+  #   ./scripts/serve-bonsai.sh         # :8083 OpenAI-compat
 
 Install log: ${INSTALL_LOG}
 EOF

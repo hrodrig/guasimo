@@ -51,6 +51,13 @@ Installs via `apt`:
   `apt-cache` for the latest `nvidia-driver-*` available in the current
   Ubuntu release. If none is found, the script warns and continues on
   CPU.
+- `libvulkan1`, `libvulkan-dev`, `mesa-vulkan-drivers`, `vulkan-tools`,
+  `glslc`, `spirv-headers`, `spirv-tools` when an AMD APU is detected and no
+  NVIDIA GPU is present (the Radeon 760M is driven by Mesa radv/aco;
+  `libvulkan-dev` provides the `vulkan.h` headers, `glslc` the shader
+  compiler, and `spirv-headers`/`spirv-tools` the SPIR-V toolchain — all
+  needed by llama.cpp's Vulkan backend at build time; note `glslc` is its own
+  package on Ubuntu, not part of `glslang-tools`; no ROCm).
 - `linux-tools-$(uname -r)` and `powertop` for benchmarking.
 
 Uses `apt-mark hold` only when we have a known-good pinned version.
@@ -59,11 +66,16 @@ Uses `apt-mark hold` only when we have a known-good pinned version.
 
 - Clones https://github.com/ggerganov/llama.cpp into `/opt/guasimo/llama.cpp/`
   at the SHA pinned in `deploy/install.sh`.
-- Configures with the flag matrix from `docs/02-hardware-decisions.md`.
+- Configures with the flag matrix from `docs/02-hardware-decisions.md`
+  (CUDA for the RTX 3060, Vulkan for the AMD Radeon 760M, native for CPU).
 - Builds with `cmake --build build --parallel`.
 - Strips the binary.
 - Symlinks `/opt/guasimo/llama-server` and `/opt/guasimo/llama-cli`.
 - Skips clone if the directory exists and matches the pinned SHA.
+- Opt-in: `INSTALL_BONSAI=1` also builds the PrismML fork into
+  `/opt/guasimo/llama.cpp-bonsai` and symlinks `llama-server-bonsai`
+  (Ternary Bonsai 2 path; see `docs/04-models.md`). Or run
+  `scripts/build-bonsai-llama.sh` later.
 
 ### Phase 4 — Ollama
 
@@ -83,6 +95,10 @@ Uses `apt-mark hold` only when we have a known-good pinned version.
   `deploy/install.sh`). CPU torch avoids pip pulling a second CUDA
   stack; inference stays on host Ollama/llama.cpp.
 - Drops the systemd unit from `deploy/systemd/open-webui.service`.
+- Installs ops scripts under `/opt/guasimo/scripts/` (`rotate-logs.sh`,
+  `thermal-guard.sh`, `thermal-monitor.sh`) and enables
+  `guasimo-logrotate.timer`. On AMD hardware also enables
+  `guasimo-thermal.service` (SoC/GPU junction soft-cap monitor).
 - Generates a self-signed TLS cert under `/etc/nginx/ssl/guasimo/`
   **before** `nginx -t` (the vhost references those paths; testing
   without them fails). Real Let's Encrypt is an operator decision; see
@@ -95,8 +111,10 @@ Uses `apt-mark hold` only when we have a known-good pinned version.
 Re-running the script must:
 
 - Skip package install if all `apt` packages are already present.
-- Skip llama.cpp build if the binary already exists and the source SHA
-  matches.
+- Skip llama.cpp build if the binary already exists, the source SHA
+  matches, **and** the accelerator backend stamp
+  (`/opt/guasimo/.llama-backend`: `cuda` / `vulkan` / `cpu`) matches
+  this run. A backend flip (e.g. CPU → Vulkan) forces a rebuild.
 - Re-write systemd unit overrides (they're cheap and the diff is visible).
 - Re-run `nginx -t` and `systemctl reload nginx` if the vhost changed.
 
@@ -104,7 +122,9 @@ It must NOT:
 
 - Re-pull models (that's `scripts/pull-models.sh`).
 - Restart running services unnecessarily (`systemctl try-reload-or-restart`
-  is fine; restart-on-no-change is not).
+  is fine; restart-on-no-change is not). Exception: after adding the
+  `ollama` user to `render`/`video` on AMD, ollama is restarted once so
+  the new groups apply.
 
 ## What the script refuses to do
 
@@ -135,6 +155,23 @@ repo manually before re-running:
     apt-get update
 
 After that, `install.sh` detects the driver and continues normally.
+
+**AMD Vulkan: the render/video group requirement.** On AMD APUs the DRM
+render node `/dev/dri/renderD128` is `root:render crw-rw----`. `install.sh`
+adds the service user (`guasimo`) and the Ollama daemon user (`ollama`) to
+`render,video` so the running services can open the device. But any human
+operator who launches `llama-server` / `llama-cli` / `vulkaninfo` **by
+hand** (for a direct Vulkan benchmark or a manual serve) must be in those
+groups too, or the Mesa `radv` ICD silently fails to enumerate and Vulkan
+falls back to `llvmpipe` (software) — the build is healthy, yet GPU
+inference runs at CPU speed with **zero offloaded layers**. This failure
+is invisible until you benchmark. Fix, then re-login (or `newgrp`):
+
+    sudo usermod -aG render,video "$USER"
+
+Verify the ICD is reachable before trusting a benchmark:
+
+    vulkaninfo --summary | grep deviceName   # must show RADV, not llvmpipe
 
 **Do not mix driver sources.** The Ubuntu archive and the NVIDIA CUDA
 repo ship overlapping NVIDIA files under different package names

@@ -76,14 +76,67 @@ else
 fi
 
 # --- NVIDIA driver loaded if hardware present --------------------------------
+# --- AMD Vulkan backend if present (Radeon 760M) -----------------------------
+# The stack supports two accelerators: NVIDIA (CUDA) on the reference box,
+# AMD APU (Vulkan) on the mini-PC. Report whichever is present.
 if lspci 2>/dev/null | grep -qi nvidia; then
   if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
     RESULTS+=("ok  | nvidia driver loaded (nvidia-smi works)"); PASS=$((PASS + 1))
   else
     RESULTS+=("WARN| nvidia hw present but driver not loaded (reboot?)"); FAIL=$((FAIL + 1))
   fi
+elif lspci 2>/dev/null | grep -iE 'vga compatible|display controller|3d controller' | grep -i amd >/dev/null 2>&1; then
+  # Prefer any render node (D128 is card0 on the mini-PC; D129+ if multi-GPU).
+  RENDER_NODE=""
+  for n in /dev/dri/renderD*; do
+    [ -e "$n" ] || continue
+    RENDER_NODE="$n"
+    break
+  done
+  if [ -n "${RENDER_NODE}" ]; then
+    RESULTS+=("ok  | amd gpu present, render node ${RENDER_NODE} exposed"); PASS=$((PASS + 1))
+    if ! command -v vulkaninfo >/dev/null 2>&1; then
+      RESULTS+=("WARN| amd gpu present but vulkaninfo missing (install vulkan-tools?)"); FAIL=$((FAIL + 1))
+    else
+      # `grep GPU` alone matches llvmpipe (software). Require a real RADV /
+      # AMD deviceName so a mis-grouped user does not look healthy.
+      VULKAN_SUM=$(vulkaninfo --summary 2>/dev/null || true)
+      if printf '%s\n' "${VULKAN_SUM}" | grep -qiE 'deviceName[[:space:]]*=[[:space:]]*.*(radv|AMD|Radeon)'; then
+        RESULTS+=("ok  | vulkan driver reports AMD/RADV GPU (Mesa radv/aco)"); PASS=$((PASS + 1))
+      elif printf '%s\n' "${VULKAN_SUM}" | grep -qi 'llvmpipe'; then
+        RESULTS+=("WARN| vulkan only sees llvmpipe (user missing render group?)"); FAIL=$((FAIL + 1))
+      else
+        RESULTS+=("WARN| vulkaninfo present but no AMD/RADV deviceName"); FAIL=$((FAIL + 1))
+      fi
+    fi
+  else
+    RESULTS+=("WARN| amd gpu present but no render node (amdgpu module not loaded?)"); FAIL=$((FAIL + 1))
+  fi
 else
-  RESULTS+=("ok  | no nvidia hw (CPU-only mode)"); PASS=$((PASS + 1))
+  RESULTS+=("ok  | no accelerator hw (CPU-only mode)"); PASS=$((PASS + 1))
+fi
+
+# --- Thermal read-back -------------------------------------------------------
+# Peak SoC (k10temp) / GPU (amdgpu) junction in Celsius. Counts as FAIL when
+# above the soft cap so CI/ops notice; a persistent value over ~85 C warrants
+# investigation (config, fan, airflow). Only AMD sensor names; millidegrees.
+T_PEAK=0
+for h in /sys/class/hwmon/hwmon*; do
+  name=$(cat "${h}/name" 2>/dev/null || true)
+  case "$name" in k10temp|amdgpu|zenpower) ;; *) continue ;; esac
+  for f in "${h}"/temp*_input; do
+    [ -f "${f}" ] || continue
+    t=$(cat "${f}" 2>/dev/null || echo 0)
+    t=$(( t / 1000 ))
+    [ "${t}" -gt "${T_PEAK}" ] && T_PEAK=${t}
+  done
+done
+if [ "${T_PEAK}" -gt 0 ]; then
+  if [ "${T_PEAK}" -le 80 ]; then
+    RESULTS+=("ok  | thermal peak ${T_PEAK}C (<= 80C soft cap)"); PASS=$((PASS + 1))
+  else
+    RESULTS+=("WARN| thermal peak ${T_PEAK}C above 80C soft cap"); FAIL=$((FAIL + 1))
+  fi
 fi
 
 # --- /data free space --------------------------------------------------------

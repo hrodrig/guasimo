@@ -17,7 +17,7 @@ files here are the contract that surface must honour.
 | 04| `04-models.md`                | Which models, quantisation levels, role per model    |
 | 05| `05-deployment.md`            | What `install.sh` does, idempotency, ordering        |
 | 06| `06-networking-and-security.md`| LAN exposure, TLS, auth, firewall                    |
-| 07| `07-operations.md`            | Logs, backups, upgrades, model rotation              |
+| 07| `07-operations.md`            | Logs, backups, upgrades, lab hosts, ports, thermal |
 | 08| `08-troubleshooting.md`       | Common failures and their first response             |
 | 09| `09-roadmap.md`               | v0.2 / v0.3 / v1.0 plans                             |
 

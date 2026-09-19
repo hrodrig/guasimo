@@ -26,14 +26,15 @@
 #   - deploy/install.sh phase 3 (builds llama.cpp, symlinks /opt/guasimo/llama-server)
 #     — requires a llama.cpp >= the --cpu-moe PR (#15077, Aug 2025); the
 #     pinned LLAMA_CPP_REF must be recent (b10630+), not b4568.
-#   - the GGUF drop /bulk/models/Ornith-1.5-35B-A3B-AD-Q5_K-Q4_K.gguf
+#   - the GGUF drop /bulk/models/Ornith-1.5-35B-Q4_K_M.gguf
+#     (20.2 GB; see ornith-ai/Ornith-1.5-35B-A3B-GGUF on HF Hub)
 #
 # See docs/04-models.md → "How to switch the model" for the full map.
 
 set -euo pipefail
 
 LLAMA_SERVER="${LLAMA_SERVER:-/opt/guasimo/llama-server}"
-MODEL="${MODEL:-/bulk/models/Ornith-1.5-35B-A3B-AD-Q5_K-Q4_K.gguf}"
+MODEL="${MODEL:-/bulk/models/Ornith-1.5-35B-Q4_K_M.gguf}"
 ALIAS="${LLAMA_ALIAS:-ornith-35b}"   # name exposed on the OpenAI-compat API
 CTX="${LLAMA_CTX:-65536}"            # 64K — matches the box's agentic floor
 NGPU="${LLAMA_NGPU:-99}"             # offload every dense/attention layer to GPU
@@ -48,7 +49,7 @@ fi
 
 if [ ! -f "${MODEL}" ]; then
   echo "GGUF not present: ${MODEL}" >&2
-  echo "  place Ornith-1.5-35B-A3B-AD-Q5_K-Q4_K.gguf in /bulk/models/ first" >&2
+  echo "  place Ornith-1.5-35B-Q4_K_M.gguf in /bulk/models/ first" >&2
   exit 3
 fi
 
@@ -58,6 +59,26 @@ if ! "${LLAMA_SERVER}" --help 2>&1 | grep -q -- "--cpu-moe"; then
   echo "this llama-server build predates --cpu-moe (PR #15077, Aug 2025)" >&2
   echo "  bump LLAMA_CPP_REF in deploy/install.sh to b10630+ and rebuild" >&2
   exit 4
+fi
+
+# Pre-flight thermal check. The 35B MoE is the most thermally demanding
+# model: refuse to start if the SoC/iGPU is already over the soft cap so a
+# hot box does not get pushed further. The cap is conservative (80 C) on a
+# 95 C Tjmax part, set after a burst capacitor burned out under sustained
+# load. Bypass with THERMAL_MAX_C=<higher> if you understand the trade-off.
+THERMAL_GUARD="${THERMAL_GUARD:-$(dirname "$0")/thermal-guard.sh}"
+if [ ! -x "${THERMAL_GUARD}" ]; then
+  # Prefer the install-root copy when running from a different cwd/path.
+  [ -x /opt/guasimo/scripts/thermal-guard.sh ] \
+    && THERMAL_GUARD=/opt/guasimo/scripts/thermal-guard.sh
+fi
+if [ -x "${THERMAL_GUARD}" ]; then
+  "${THERMAL_GUARD}" 1 || {
+    echo "refusing to start: box is thermally hot — let it cool first" >&2
+    exit 5
+  }
+else
+  echo "warning: thermal-guard.sh not found/executable — starting without thermal gate" >&2
 fi
 
 echo ">>> serving Ornith-1.5-35B-A3B (--cpu-moe) on :${PORT} as '${ALIAS}' (ctx ${CTX})"

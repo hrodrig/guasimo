@@ -376,6 +376,29 @@ install unversioned Ubuntu-archive NVIDIA packages (`nvidia-firmware`,
 - Full LAN-client wiring (including Hermes Agent) is in
   `docs/06-networking-and-security.md` → *Clients on another LAN host*.
 
+## Symptom: Agent “hangs” minutes on a tiny prompt (AMD lab)
+
+Hermes / Pi with a full skills catalog can inject **tens of thousands** of
+system/tool tokens before your one-line question. On Ornith-35B
+`--cpu-moe`, prefill is ~80–90 tok/s — **~18k tokens ≈ 3–6 minutes** of
+“processing…” with SoC near 90 °C. Generation itself stays ~20 t/s.
+
+**Check:**
+
+```bash
+# lean baseline (should finish in seconds)
+curl -sS http://192.168.10.10:8082/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"ornith-35b","messages":[{"role":"user","content":"ping"}],"max_tokens":16}'
+# journal: prompt processing n_tokens / tokens per second
+journalctl -u guasimo-llama-35b -n 30 --no-pager
+```
+
+If curl is fast and the agent is slow → **harness prompt bloat**, not the
+model. Fix: Pi with `--no-skills --no-extensions`, Open WebUI, or Hermes
+with skills/tools stripped. See `docs/06-networking-and-security.md` →
+*AMD lab — llama-server on LAN*.
+
 ## Symptom: Hermes Agent — context window below 64 000
 
 Errors look like:

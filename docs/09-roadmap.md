@@ -114,6 +114,15 @@ an organic merge rather than a separate tag.
 - Quantisation-aware fine-tuning for the Qwen 3.8 27B GGUF to recover
   the tokens/s the v0.2.x 14B had (deferred until the offload
   tradeoff feels too costly in daily use).
+- **Prism ML Ternary Bonsai 2** as a measured alternative to Ornith-35B
+  on the AMD mini-PC (wired as opt-in `serve-bonsai.sh` / `INSTALL_BONSAI=1`;
+  still needs on-box tok/s + quality bake-off before displacing any
+  default). Fork pin may need bumps as Prism ships kernels.
+- **Colibrì + int4 MoE bake-off (AMD lab)** — clone/build done; finish HF
+  download of `Kreuzzelg/qwen36-35b-a3b-colibri-i4-gs64` (and any DeepSeek
+  Colibrì-format weights), then measure chat latency / Go quality vs
+  Gemma-Hermes (fast) and Ornith-35B curl (quality). Tracked in
+  `docs/07-operations.md` → *Pending lab bake-offs*.
 
 Each deferred item has a one-line rationale: not needed for "LLM that
 helps me write Go and C#". Revisit when a real second user shows up.

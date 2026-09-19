@@ -46,6 +46,16 @@ covered by the install contract:
 | Storage   | One fast disk (NVMe, ≥ 100 GB) + optional bulk disk |
 | OS        | Ubuntu 26.04 LTS                      |
 
+Two accelerator backends are supported and auto-detected at install time,
+in priority order:
+
+1. **CUDA** — NVIDIA RTX 3060 (GA106, SM 86) with the proprietary driver +
+   `nvcc`. This is the original reference target.
+2. **Vulkan** — AMD Radeon iGPU (Phoenix / RDNA3, e.g. the Radeon 760M in a
+   Ryzen 7640HS mini-PC) driven by Mesa `radv`/`aco`. No proprietary driver,
+   no ROCm. Selected automatically when no NVIDIA GPU is present but an AMD
+   APU shows up in `lspci`.
+
 CPU-only operation is supported as a documented fallback at degraded
 performance.
 

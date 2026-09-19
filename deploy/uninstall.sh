@@ -16,6 +16,7 @@ LEGACY_USER="ia-lab"
 
 systemctl disable --now guasimo.target open-webui.service 2>/dev/null || true
 systemctl disable --now guasimo-logrotate.timer 2>/dev/null || true
+systemctl disable --now guasimo-thermal.service 2>/dev/null || true
 systemctl disable --now ia-lab.target 2>/dev/null || true
 systemctl disable --now ia-lab-logrotate.timer 2>/dev/null || true
 systemctl disable --now ollama.service nginx 2>/dev/null || true
@@ -23,6 +24,7 @@ systemctl disable --now ollama.service nginx 2>/dev/null || true
 rm -f /etc/systemd/system/guasimo.target
 rm -f /etc/systemd/system/guasimo-logrotate.service
 rm -f /etc/systemd/system/guasimo-logrotate.timer
+rm -f /etc/systemd/system/guasimo-thermal.service
 rm -f /etc/systemd/system/ia-lab.target
 rm -f /etc/systemd/system/ia-lab-logrotate.service
 rm -f /etc/systemd/system/ia-lab-logrotate.timer

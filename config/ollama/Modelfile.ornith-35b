@@ -1,0 +1,34 @@
+# Modelfile.ornith-35b — large model (Ornith 1.5 generation, MoE).
+#
+# Ornith-1.5-35B-A3B at Q4_K_M. This is the "large" tier: the natural
+# step up from the 9B primary for tasks where output quality (idiomatic
+# Go/C# doc comments, %w-wrapped errors) matters more than throughput.
+# 35B total / 3B active (MoE), so it stays fast while holding 4x the
+# capacity of the 9B. Weighs ~20.2 GB on disk, leaving ~50 GB headroom
+# for a 64K KV cache + OS on the ~80 GB AMD mini-PC (96 GiB minus the
+# ~16 GiB BIOS iGPU carve-out). See docs/02-hardware-decisions.md.
+#
+# This is a MANUAL GGUF drop, not an Ollama library tag. The GGUF must
+# be placed in /bulk/models/ first (see docs/04-models.md).
+#
+# Create with (run from the repo root, so the relative path to
+# PROMPT.coding.md resolves and the FROM path exists):
+#
+#   ollama create ornith-35b -f config/ollama/Modelfile.ornith-35b
+#
+# Reference: docs/04-models.md; scripts/serve-35b.sh runs the same model
+# as a separate llama-server via --cpu-moe for the quality path.
+
+FROM /bulk/models/Ornith-1.5-35B-Q4_K_M.gguf
+
+# Ornith 1.5 uses a plain prompt template (no ChatML). Do NOT override.
+SYSTEM """$(cat config/ollama/PROMPT.coding.md)"""
+
+# Sampling — conservative for code.
+PARAMETER temperature        0.2
+PARAMETER top_p              0.95
+PARAMETER top_k              40
+PARAMETER repeat_penalty     1.05
+
+# Context. 64K floor for agentic work, matching serve-35b.sh.
+PARAMETER num_ctx            65536

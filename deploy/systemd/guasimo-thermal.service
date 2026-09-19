@@ -1,0 +1,19 @@
+[Unit]
+Description=guasimo thermal monitor (AMD SoC/GPU junction)
+After=multi-user.target
+Wants=guasimo.target
+
+[Service]
+Type=simple
+User=guasimo
+ExecStart=/opt/guasimo/scripts/thermal-monitor.sh
+# Soft cap (C) and sample cadence (s). Tjmax of the 7640HS is 95 C; 80 C is
+# the conservative value chosen in docs/02-hardware-decisions.md.
+Environment=THERMAL_MAX_C=80
+Environment=THERMAL_INTERVAL_S=30
+# Snapshot the whole service family together (see deploy/systemd/guasimo.target).
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
